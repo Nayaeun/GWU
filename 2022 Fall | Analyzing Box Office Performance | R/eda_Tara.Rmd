@@ -1,0 +1,83 @@
+---
+title: "Data Summary"
+author: "C. Krall"
+date: '2022-10-11'
+output: html_document
+---
+
+
+Importing datasets and necessary packages
+```{r}
+boxoffice <- read.csv("C:/Users/16512/Documents/R/dats6101_me/midterm_proj/boxoffice.csv")
+rotten <- read.csv("C:/Users/16512/Documents/R/dats6101_me/midterm_proj/rotten_tomatoes_movies.csv")
+imdb_rating <- read.csv("C:/Users/16512/Documents/R/dats6101_me/midterm_proj/IMDB_filtered.csv")
+```
+
+```{r include=FALSE}
+library(dplyr)
+library(tidyr)
+library(ggplot2)
+```
+
+```{r}
+head(boxoffice)
+```
+
+
+The two chunks below filter unnecessary columns from the rotten tomatoes data, and joins all three datasets using an inner join. Inner join was used to ensure that only movie titles included in all three datasets would be included in the final data.
+```{r}
+rotten <- 
+  rotten %>%
+  select(-rotten_tomatoes_link, -movie_info, -critics_consensus, -authors, -actors)
+```
+
+```{r}
+movie <- inner_join(rotten, boxoffice, by = c("movie_title" = "title"))
+movie <- inner_join(eek, imdb_rating, by = c("movie_title" = "originalTitle"))
+
+
+movie <- 
+  movie %>%
+  filter(year >= 1980)%>%
+  distinct(movie_title)
+```
+
+The below chunk changes content rating to and ordinal factor, and the release dates from numeric to date type variables
+
+```{r}
+#Convert content_rating to ordinal factor
+movie$content_rating <- factor(movie$content_rating, levels = c("G", "PG", "PG-13", "R", "NR"))
+
+#Convert original_release_date and streaming_release_date to dates
+movie$original_release_date <- as.Date(movie$original_release_date)
+movie$streaming_release_date <- as.Date(movie$streaming_release_date)
+
+```
+```{r Q}
+
+movie <- read.csv("movies.csv")
+str(movie)
+
+```
+
+
+```{r}
+
+
+
+
+```
+
+**EDA**
+(1) Dataset structure and description of variables
+
+(2) Variable Distributions, potential relationships, and correlations
+
+(3) Linear Regression Models
+
+(4) Model Comparisons and Final Model Selection
+
+
+
+
+

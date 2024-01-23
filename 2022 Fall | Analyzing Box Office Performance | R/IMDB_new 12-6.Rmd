@@ -1,0 +1,151 @@
+---
+title: "Final- IMDB modeling"
+author: "Tara"
+date: "2022-11-25"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## R Markdown
+
+
+```{r include=FALSE}
+library(dplyr)
+library(tidyr)
+library(ggplot2)
+library(stringr)
+```
+
+## Getting rid of the unnecessary columns
+
+
+```{r}
+movie <- read.csv("movies.csv")
+```
+
+```{r}
+movie_red <-
+  movie %>%
+  select(X, movie_title, content_rating, genres.y, runtime, tomatometer_status, tomatometer_rating, tomatometer_count, lifetime_gross, startYear, averageRating, numVotes) %>%
+  rename(genre = genres.y, imdbRating = averageRating)
+```
+
+
+```{r}
+
+ggplot(movie_red, aes(x=imdbRating)) + 
+  geom_histogram(color="blue", fill="blue") + labs(title="IMDB histogram plot", x="IMDB Rating", y = "Count")
+```
+
+```{r}
+library("ezids")
+summaryIR <- summary(movie_red$imdbRating)
+xkabledply(as.table(summaryIR), title = "Summary of IMDB Rating", wide = T)
+```
+
+## Rought count of genres 
+Rough since this would not exactly count the unique genres as say 'Comedy' and 'comedy' woudl be counted seperatly  
+```{r}
+movie_red %>% 
+   separate_rows(genre,sep=",") %>% 
+   count(genre) %>%
+   arrange(desc(n))
+
+str(movie_red)
+```
+
+
+
+## Adding indicator variables for Genre
+
+The first thing we need to do is find which genres are the most common. I created indicator variables for the top genres and summarizes their count
+```{r}
+movie_red <-
+  movie_red %>%
+  mutate(drama = ifelse(str_detect(genre, "Drama"), 1,0),
+         comedy = ifelse(str_detect(genre, "Comedy"), 1,0),
+         romance = ifelse(str_detect(genre, "Romance"), 1,0),
+         crime = ifelse(str_detect(genre, "Crime"), 1,0),
+         action = ifelse(str_detect(genre, "Action"), 1,0),
+         adventure = ifelse(str_detect(genre, "Adventure"), 1,0),
+         thriller = ifelse(str_detect(genre, "Thriller"), 1,0),
+         documentary = ifelse(str_detect(genre, "Documentary"), 1,0),
+         horror = ifelse(str_detect(genre, "Horror"), 1,0),
+         biography = ifelse(str_detect(genre, "Biography"), 1,0),
+         mystery = ifelse(str_detect(genre, "Mystery"), 1,0),
+         scifi = ifelse(str_detect(genre, "Sci-Fi"), 1,0))
+```
+
+
+## Creating factor variables
+```{r}
+
+movie_red$tomatometer_status <- as.factor(movie_red$tomatometer_status)
+movie_red$content_rating <- as.factor(movie_red$content_rating)
+movie_red$comedy <- as.factor(movie_red$comedy)
+movie_red$action <- as.factor(movie_red$action)
+movie_red$scifi <- as.factor(movie_red$scifi)
+movie_red$documentary <- as.factor(movie_red$documentary)
+movie_red$drama <- as.factor(movie_red$drama)
+movie_red$horror <- as.factor(movie_red$horror)
+movie_red$romance <- as.factor(movie_red$romance)
+movie_red$crime <- as.factor(movie_red$crime)
+movie_red$adventure <- as.factor(movie_red$adventure)
+movie_red$mystery <- as.factor(movie_red$mystery)
+movie_red$biography <- as.factor(movie_red$biography)
+movie_red$thriller <- as.factor(movie_red$thriller)
+
+
+
+#, -content_rating, -tomatometer_status, -comedy, - action, -scifi, -documentary, -drama, -horror, -romance, -crime, -adventure, -mystery, -biography, -thriller
+
+str(movie_red)
+```
+
+## Feature Selection 
+```{r results='markup'}
+movie_red2 <-
+  movie_red %>%
+  select(-X, -movie_title, -genre)
+
+library("leaps")
+reg.best10 <- regsubsets(imdbRating~., data = movie_red2, nbest = 2, nvmax = 10, method = "exhaustive")  
+plot(reg.best10, scale = "adjr2", main = "Adjusted R^2")
+summary(reg.best10)
+```
+## Four Models based on feature selection & ANOVA
+
+
+```{r}
+
+#top numerical variables:
+fit1<- lm(imdbRating~runtime+tomatometer_count+numVotes+tomatometer_rating, data=movie_red)
+summary(fit1)
+
+#top variables with genre: runtime, tomato meter count, numVotes, drama, comedy, horror, biography
+
+fit2<-lm(imdbRating~runtime+tomatometer_count+numVotes+tomatometer_rating+drama+comedy+horror+biography, data=movie_red)
+summary(fit2)
+
+#adding qual vars- content rating and tomatometer_count
+fit3<-lm(imdbRating~runtime+tomatometer_count+tomatometer_status+numVotes+tomatometer_rating+content_rating, data=movie_red)
+summary(fit3)
+
+
+
+#top variables with genre: runtime, tomato meter count, numVotes, drama, comedy, horror, biography
+fit4<-lm(imdbRating~runtime+tomatometer_count+tomatometer_status+tomatometer_rating++content_rating+numVotes+drama+comedy+horror+biography, data=movie_red)
+summary(fit4)
+
+
+anova(fit1, fit2, fit3, fit4)
+```
+
+
+
+
+The ANOVA test indicates that the increases in variance between the models are signficant with very low p-values. This can be confirmed by looking at the p-values for each model, being less than .05. However, when looking at the $R^2$ values, the 2nd and 4th models accounts for approximately .43 of the variance, and the difference is negligible. The 2nd model uses 7 variables, whereas the 4th model uses 14.
+

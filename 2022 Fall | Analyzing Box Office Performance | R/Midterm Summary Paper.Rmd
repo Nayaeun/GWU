@@ -1,0 +1,117 @@
+---
+title: "Midterm Summary Paper"
+author: "Tara, Yoni, Caroline, Arjun"
+date: "2022-10-23"
+output:
+  prettydoc::html_pretty:
+    theme: cayman
+    number_sections: false
+    toc: yes
+    toc_depth: 3
+  pdf_document:
+    toc: yes
+    toc_depth: '3'
+
+---
+
+```{r init, include=FALSE}
+
+knitr::opts_chunk$set(warning = F, results = "hide", message = F)
+options(scientific=T, digits = 3) 
+
+```
+
+# Box Office Performance in the US
+
+## Chapter 1: Introduction
+
+Movies have always been a popular form of entertainment, but what makes a movie successful? The literature states multiple different factors that can influence box office sales. Most revolve around Oscar nominations, specific genres, and the directors/actors' popularity (Scott 2022). One less researched avenue in the literature was rating reviews. The information that was publicly available for use led us to utilize datasets from IMDB and Rotten Tomatoes, very popular movie rating websites. The datasets from these sites will allow analysis in the ratings review space. 
+
+
+## Chapter 2: Description of the Data
+
+
+### 2.1 Source Data
+
+We combined three different datasets, IMDB, Rotten Tomatoes, and Box Office Mojo to create our master dataset to answer the SMART question: What factors affect box office performance sales in the US? The IMDB dataset is publicly available online, the Rotten Tomato dataset was pulled from Kaggle, and the Box Office Mojo dataset was obtained from Data World. We joined these datasets through an inner join on movie title, where the year of release ranged from 1912 to 2022. Due to the nature of combining three different datasets, there were multiple columns that were irrelevant to answering our SMART question. After removing those columns, we were left with 8 features to predict our target variable, domestic lifetime gross.  
+
+
+The total number of observations for dataset consists of 7,981 observations with 9 variables. 
+
+```{r ch2.1, include=FALSE}
+library(ezids)
+library(dplyr)
+
+movie.red<- read.csv("movie_reduced.csv")
+structure <- str(movie.red)
+
+
+```
+
+
+The features we used to determine box office performance were: 
+
+-Movie title
+-Content rating: G, PG, PG-13, R
+-Year of Release
+-Runtime
+-IMDB rating: from 1-10
+-IMDB count:  the number of votes that went into the IMDB rating 
+-Rotten Tomato Rating: from 1-100
+-Rotten Tomato Count: the number of professional votes that went into the Rotten Tomato rating
+
+
+## Chapter 3: Exploratory Data Analysis
+
+```{r clean, include=F}
+movie.red$runtime <- as.numeric(movie.red$runtime)
+
+movie_num <-
+  movie.red %>%
+  select(-1, -2)
+
+movie_num <- na.omit(movie_num)
+```
+
+
+### Statistics Summary
+
+```{r ezids, echo=FALSE, results=T}
+
+xkablesummary(movie_num)
+
+
+```
+
+
+
+
+
+
+
+
+
+
+
+## Conclusion
+
+
+### model conclusion here?
+
+
+### Limitations
+
+The main goal when analyze data and drawing conclusions is to have a sample representative of the given population. We should be able to infer the population based on our analysis of the sample. Although we used data from two very popular rating sites, we must acknowledge that there are many more rating sites that people use to rate movies. The issue in using these various sites was that the data was either unavailable without a fee or was very incomplete, which could skew our data. We thought it would be best to use the most complete data from two popular rating websites. In doing so, we also acknowledge that this may not be the most representative sample. Although, with close to 8,000 observations, this is still a robust dataset. 
+
+
+### Future Research
+
+There are many avenues for future research to be explored. Within the scope of this class, we can re-analyze the data while accounting for inflation throughout the years. Considering the year of release spanning 110 years, the rate of inflation could alter the results quite drastically. In the same realm, we can analyze the data through time series, especially during the pandemic from 2019-2022, and how that affected box office sales. Around this time, streaming platforms also became increasingly popular since many people were in lockdown, which negatively impacted box office sales. 
+
+
+
+
+
+## Bibliography
+
+Scott, G. Determinants of box office performance: Return of the regressions. Retrieved October 28, 2022, from https://scholarworks.uni.edu/cgi/viewcontent.cgi?article=1143&amp;context=mtie 

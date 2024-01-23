@@ -1,0 +1,286 @@
+---
+title: "Data Summary"
+author: "Nayaeun Kwon"
+date: '2022-10-21'
+output:
+  html_document:
+    code_folding: hide
+    number_sections: false
+    toc: yes
+    toc_depth: 3
+    toc_float: yes
+  pdf_document:
+    toc: yes
+    toc_depth: '3'
+---
+
+Importing datasets and necessary packages
+```{r inlcue=FALSE}
+#Importing Datasets
+movie <- read.csv("movie_reduced.csv")
+str(movie)
+summary(movie)
+
+newmovie <- na.omit(movie)
+xkablesummary(newmovie)
+```
+
+```{r include=FALSE}
+library(dplyr)
+library(tidyr)
+library(ggplot2)
+library(ezids)
+library(scales)
+
+
+knitr::opts_chunk$set(warning = F, results = "hide", message = F)
+options(scipen=999)
+```
+
+--------------------------------------------------------------------------
+# 1. Independent Variables EDA: Overview of Data
+### 1.1 Overview for Domestic Lifetime Gross 
+
+```{r }
+summary(newmovie)
+sd(newmovie$dlg)
+```
+
+Refined dataset yields following observations for the domestic lifetime gross of ranked movies: the minimum price is $`r min(movie$dlg)` and the maximum price is $`r max(movie$dlg)`; the mean of gross is $`r mean(movie$dlg)` (indicating mean is higher than median ($`r median(movie$dlg)`) which means the shape of distribution is right-skewed); the standard deviation of gross is $`r sd(movie$dlg)`.
+
+x="Gross of Movie ($)",   xlim (NA, 100000000)  + 
+```{r Plots for dlg}
+# Histogram
+ggplot(newmovie, aes(x=dlg)) + 
+  geom_histogram(col='dark blue', fill='light blue', bins = 30) + 
+  labs(title = "Histogram of Domestic Lifetime Gross",  y="Frequency") + 
+  theme(plot.title = element_text(hjust = 0.5))+
+  scale_x_continuous("Lifetime Gross of Movie($)", limits= c(NA, 35000000), labels = label_number_si())
+
+#Box plot
+ggplot(newmovie, aes(y=dlg)) +
+  geom_boxplot(na.rm = T, colour="sky blue", outlier.colour="dark blue", outlier.shape=8, outlier.size=4) +
+  coord_cartesian(ylim = c(0,100000000)) +
+  labs(title = "Boxplot of Domestic Lifetime Gross, 0M~100M Only", x= "Rating Level", y= "Domestic Lifetime Gross($)")+
+  theme(plot.title = element_text(hjust = 0.5))+
+  scale_y_continuous(labels = label_number_si())
+
+#QQ-plot
+qqnorm(newmovie$dlg, main = "QQ-Plot of Domestic Lifetime Gross")
+qqline(newmovie$dlg, col = 'red')
+
+```
+
+As everyone can see, `dlg` has completely right-skewed distribution. 
+
+# 2. Independent Variables EDA: Boxplots, Scatterplots, Correlation Test
+### 2.1 SMART Question: Does rating affect to lifetime gross?
+```{r}
+# Scatterplot for imdbRating
+ggplot(newmovie, aes(x=imdbRating, y=dlg))+
+  geom_point()+
+  geom_smooth(method=lm) +
+  labs(title = "Scatter Plot for IMDB Rating", x="IMDB Rating", y="Lifetime Gross($)")+
+  theme(plot.title = element_text(hjust = 0.5))+
+  scale_y_continuous(labels = label_number_si())
+
+# Scatterplot for rtRating
+ggplot(newmovie, aes(x=rtRating, y=dlg))+
+  geom_point()+
+  geom_smooth(method=lm) +
+  labs(title = "Scatter Plot for Rotten Tomatoes Rating", x="Rotten Tomatoes Rating", y="Lifetime Gross($)")+
+  theme(plot.title = element_text(hjust = 0.5))+
+  scale_y_continuous(labels = label_number_si())
+
+# Correaltion between Rtaing and gross
+cor.test(newmovie$imdbRating, newmovie$dlg)
+cor.test(newmovie$rtRating, newmovie$dlg)
+
+```
+
+We did firstly Scatter plot to show intuitively how each rating affect to `dlg`. As you can see, it tends to have increasing linear relationship, but it should be looked into more. We did additional investigation by dividing the rating into 3 groups, which are 1 to 3.9, 4 to 7.9, and over 8.
+
+#### 2.1.1 IMDB Rating
+```{r echo=FALSE}
+summary(newmovie$imdbRating)
+sd(newmovie$imdbRating) 
+```
+
+```{r IMDB rating Plots}
+# Histogram
+ggplot(newmovie, aes(x=imdbRating)) +
+  geom_histogram(binwidth = 0.1, color='darkblue', fill='lightblue') +
+  labs(title = "Histogram of DLG by IMDB Rating", x="IMDB Rating", y="Frequency") +
+  theme(plot.title = element_text(hjust = 0.5))
+
+# Convert imdbRating into factor
+imdbR_fac <- cut(newmovie$imdbRating, breaks = c(1, 3.9, 7.9, Inf), labels = paste("IMDB R ", 1:3, sep=""))
+
+# Box-plot based on each IMDB Rating range without outliers
+ggplot(newmovie, aes(x=imdbR_fac, y=dlg, fill=imdbR_fac)) +
+  geom_boxplot(na.rm = T, outlier.shape = NA) +
+  coord_cartesian(ylim = c(0,250000000)) +
+  labs(title = "Boxplot of Lifetime Gross by IMDB Rating", x= "IMDB Rating", y= "Domestic Lifetime Gross($)")+
+  theme(plot.title = element_text(hjust = 0.5))+
+  scale_y_continuous(labels = label_number_si())+
+  scale_fill_discrete(name = "IMDB Rating", labels = c("1~3.9", "4~7.9", "8~ ")) +
+  theme(legend.title = element_text(hjust = 0.5))+
+  scale_x_discrete(labels = c("1~3.9", "4~7.9", "8~ "))
+```
+As the rating is subdivided, it can be seen that the higher the rating, the wider the range of the gross and the larger the gross.
+
+
+#### 2.1.2 Rotten Tomatoes Rating
+```{r tomato rating summary}
+summary(newmovie$rtRating)
+sd(newmovie$rtRating)
+```
+
+```{r Rotten Tomatoes Rating Plots}
+# Histogram
+ggplot(newmovie, aes(x=rtRating)) +
+  geom_histogram(binwidth =2, color = 'darkblue', fill = 'lightblue') +
+  labs(title = "Histogram of DLG by Rotten Tomatoes Rating", x="Rotten Tomatoes Rating", y="Frequency") +
+  theme(plot.title = element_text(hjust = 0.5))
+
+
+# Convert rtRating into factor
+rtR_fac <- cut(newmovie$rtRating, breaks = c(-1, 39, 79, Inf), labels = paste("rt R ", 1:3, sep=""))
+
+# Box-plot based on each rtRating range without outliers
+ggplot(newmovie, aes(x=rtR_fac, y=dlg, fill=rtR_fac)) +
+  geom_boxplot(na.rm = F, outlier.shape = NA) +
+  coord_cartesian(ylim = c(0,100000000)) +
+  labs(title = "Boxplot of Lifetime Gross by rtRating", x= "Rotten Tomatoes Rating", y= "Domestic Lifetime Gross($)")+
+  theme(plot.title = element_text(hjust = 0.5))+
+  scale_y_continuous(labels = label_number_si())+
+  scale_fill_discrete(name = "RT Rating", labels = c("0~39", "40~79", "80~ ")) +
+  theme(legend.title = element_text(hjust = 0.5))+
+  scale_x_discrete(labels = c("0~39", "40~79", "80~ "))
+```
+We did the same for the Rotten Tomatoes rating. However, the rt rating is not only that there is no difference in the gross, but even that tends to decline. 
+
+What is interesting here is that if imdb rating is a full range of criticisms, including public, rt rating includes only expert and critic reviews. 
+
+Think of it. It is not necessarily popular because it is a highly rated movie by movie critics.
+
+### 2.2 SMART Question: Is there a difference in lifetime gross according to count? 
+#### 2.2.1 Does count affect to lifetime gross?
+```{r}
+
+# Scatterplot for imdbCount
+ggplot(newmovie, aes(x=imdbCount, y=dlg))+
+  geom_point()+
+  geom_smooth(method=lm)+
+  labs(title = "Scatter Plot for IMDB Count", x="IMDB Count", y="Lifetime Gross($)")+
+  theme(plot.title = element_text(hjust = 0.5))+
+  scale_y_continuous(labels = label_number_si())
+
+
+# Scatterplot for rtCount
+ggplot(newmovie, aes(x=rtCount, y=dlg))+
+  geom_point()+
+  geom_smooth(method=lm)+
+  labs(title = "Scatter Plot for Rotten Tomatoes Count", x="Rotten Tomatoes Count", y="Lifetime Gross($)")+
+  theme(plot.title = element_text(hjust = 0.5))+
+  scale_y_continuous(labels = label_number_si())
+
+
+# Correaltion between imdbCount and gross
+cor.test(newmovie$imdbCount, newmovie$dlg)
+cor.test(newmovie$rtCount, newmovie$dlg)
+
+```
+In the case of `countRting`, there is a clear correlation with `dlg`.
+
+### 2.3 SMART Question: Is there a difference in lifetime gross according to content rating? 
+```{r}
+#Convert contRating to factor
+newmovie$contRating <- factor(newmovie$contRating, levels = c("G", "PG", "PG-13", "R", "NR", "NC17"))
+
+```
+
+```{r}
+# Box-plot based on each contRating without outliers
+ggplot(newmovie, aes(x=reorder(contRating,dlg,na.rm=T), y=dlg, fill=contRating)) +
+  geom_boxplot(na.rm = TRUE, outlier.shape = NA) +
+  coord_cartesian(ylim = c(0,200000000)) +
+  labs(title = "Boxplot for Lifetime Gross by contRating", x= "Content Rating", y= "Domestic Lifetime Gross($)")+
+  theme(plot.title = element_text(hjust = 0.5))+
+  guides(fill = guide_legend(title = "Content Rating"))+
+  scale_y_continuous(labels = label_number_si())
+```
+
+```{r}
+# without NC17 & NR
+noNC17NR <- subset (newmovie, contRating != "NC17" & contRating != "NR")
+
+ggplot(noNC17NR, aes(x=reorder(contRating,dlg,na.rm=T), y=dlg, fill=contRating)) +
+  geom_boxplot(na.rm = TRUE, outlier.shape = NA) +
+  coord_cartesian(ylim = c(0,200000000)) +
+  labs(title = "Boxplot for Lifetime Gross by contRating", x= "Content Rating", y= "Domestic Lifetime Gross($)")+
+  theme(plot.title = element_text(hjust = 0.5))+
+  guides(fill = guide_legend(title = "Content Rating"))+
+  scale_y_continuous(labels = label_number_si())
+```
+
+As for content rating, movies that cover all ages or preschoolers tend to have a high gross as expected.
+
+### 2.4 SMART Question: Is there a difference in lifetime gross according to year? 
+
+```{r}
+# Histogram
+ggplot(newmovie, aes(x=year)) +
+  geom_histogram(binwidth = 5, color = 'darkblue', fill = 'lightblue') +
+  labs(title = "Histogram by Year", x="Year", y="Frequency") +
+  theme(plot.title = element_text(hjust = 0.5))
+```
+
+```{r}
+
+# Convert year to factor (1911~1929 / 1930~1949 / 1950~1969 / 1970~1989 / 1990~2009 / 2010~ )
+newmovie$year <- cut(newmovie$year, breaks = c(1910, 1929, 1949, 1969, 1989, 2009, Inf), labels = paste("Year ", 1:6, sep=""))
+
+# Box-plot based on each year without outliers
+ggplot(newmovie, aes(x=year, y=dlg, fill=year)) +
+  geom_boxplot(na.rm = TRUE, outlier.shape = NA) +
+  coord_cartesian(ylim = c(0,115000000)) +
+  labs(title = "Boxplot for Lifetime Gross by Year", x= "Year", y= "Domestic Lifetime Gross($)")+
+  theme(plot.title = element_text(hjust = 0.5))+
+  scale_fill_discrete(name = "Year", labels = c("1911~1929", "1930~1949", "1950~1969", "1970~1989", "1990~2009", "2010~ ")) +
+  theme(legend.title = element_text(hjust = 0.5))+
+  scale_x_discrete(labels = c("1911~1929", "1930~1949", "1950~1969", "1970~1989", "1990~2009", "2010~ "))+
+  scale_y_continuous(labels = label_number_si())
+
+
+```
+
+In order to find out the effect of each year, `year` is also grouped by 20 years.
+
+What is interesting about `year` variable was that the gross tend to decrease over time.
+
+### Correlation Matrix
+```{r}
+# Subset only numerical variables
+num_newmovie <- movie[-c(1:5)]
+str(num_newmovie)
+
+# Correlation Matrix
+corrnewmovie <- cor(num_newmovie, use = "complete.obs")
+corrnewmovie
+
+loadPkg("corrplot")
+corrplot.mixed(corrnewmovie)
+```
+```{r}
+lm1 <- lm(dlg~imdbCount, data = num_newmovie)
+summary(lm1)
+```
+```{r}
+lm2 <- lm(dlg~imdbCount+rtCount, data = num_newmovie)
+summary(lm2)
+```
+```{r}
+lm3 <- lm(dlg~imdbCount+rtCount+contRating, data = newmovie)
+summary(lm3)
+```

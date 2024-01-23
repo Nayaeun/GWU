@@ -1,0 +1,623 @@
+---
+title: "Box Office Performance "
+author: "Arjun Bingly, Caroline Krall, Nayaeun Kwon, Tara Thomas"
+date: "2022-10-23"
+output:
+  prettydoc::html_pretty:
+    theme: cayman
+    number_sections: false
+    toc: yes
+    toc_depth: 3
+  pdf_document:
+    toc: yes
+    toc_depth: '3'
+---
+```{r include=FALSE}
+# Setting Environment 
+
+library(dplyr)
+library(tidyr)
+library(ggplot2)
+library(ezids)
+library(scales)
+loadPkg("corrplot")
+
+knitr::opts_chunk$set(echo=FALSE, warning=FALSE, fig.align = 'center', error = F, message = F)
+options(scipen=999)
+```
+
+# 1. Introduction
+
+Movies have always been a popular form of entertainment, but what makes a movie successful? The literature states multiple different factors that can influence box office sales. Most revolve around Oscar nominations, specific genres, and the directors/actors' popularity (Scott 2022). One less researched avenue in the literature was rating reviews. The information that was publicly available for use led us to utilize datasets from IMDB and Rotten Tomatoes, very popular movie rating websites. The datasets from these sites will allow analysis in the ratings review space. 
+
+# 2. Description of the Data
+
+```{r include=F}
+# Importing dataset 
+filepath = "movies.csv" 
+org_movie <- read.csv(filepath)
+head(org_movie)
+colnames(org_movie)
+
+# Changing column name
+vars <- c("primaryTitle","lifetime_gross","content_rating","year","runtimeMinutes","averageRating","tomatometer_rating","numVotes","tomatometer_count") 
+# List of new col names
+nvars <- c("Title","LifetimeGross","contentR","Year","Runtime","imdbR","rottentmtR","imdbC","rottentmtC") 
+
+# Creating new df with only cols in vars
+movie <- org_movie[vars] 
+colnames(movie) <- nvars #renaming using nvars
+head(movie)
+
+# Exporting to csv
+write.csv(movie,"movie_reduced.csv")
+```
+
+We combined three different datasets, IMDB, Rotten Tomatoes, and Box Office Mojo to create our master dataset to answer the SMART question: What factors affect box office performance sales in the US? The IMDB dataset is publicly available online, the Rotten Tomato dataset was pulled from Kaggle, and the Box Office Mojo dataset was obtained from Data World. 
+
+We joined these datasets through an inner join on movie title, where the year of release ranged from 1912 to 2022. Due to the nature of combining three different datasets, there were multiple columns that were irrelevant to answering our SMART question. After removing those columns, we were left with 8 features to predict our target variable, domestic lifetime gross. After removing unnecessary variables and null data, we converted `contentR` into factor and `Rundtime` into numeric variables for our future analysis. 
+
+
+```{r include=F}
+# Setting Dataset
+movie <- read.csv("movie_reduced.csv")
+movie <- na.omit(movie)
+
+movie <- subset(movie, select = -c(X) )
+
+movie$Runtime <- as.numeric(movie$Runtime)
+movie$contentR <- factor(movie$contentR, levels = c("G", "PG", "PG-13", "R", "NC17", "NR"))
+
+summary(movie)
+```
+
+```{r echo=FALSE}
+str(movie)
+```
+
+Our refined `movie` dataset is organized `r nrow(movie)` observations and `r length(movie)` variables (See above for a readout of the dataset's structure). 
+
+Variable descriptions are as follows:
+_format :_ __col name__ - _description_
+
+1. __Title__ - The title of  the movie. _(source: IMDB)_
+2. __LifetimeGross__ -  The domestic lifetime gross of the movie in USD (not accounting inflation). _(source: Box Office Mojo)_
+3. __contentR__ - The category based on the movie suitability for audience. _(source: Rotten Tomatoes)_
+4. __Year__ - The year of movie release. _(source: IMDB)_
+5. __Runtime__ - The movie run time in minutes. _(source: IMDB)_
+6. __imdbR__ -  The IMDB rating from 1 to 10, average of user votes. _(source: IMDB)_
+7. __rottentmtR__ - The percentage of positive critic reviews from 1 to 100. _(source: Rotten Tomatoes)_
+8. __imdbC__ - The number of votes that went into the IMDB rating. _(source: IMDB)_
+9. __rottentmtC__ - The number of critic ratings counted for tomatometer rating. _(source: Rotten Tomatoes)_
+
+
+# 3. Variable EDA: Slicing the Data for an Overview
+
+```{r include=F}
+summary(movie$LifetimeGross)
+```
+
+
+### 3.1 Independent Variable: __Lifetime Gross__ Overveiw
+
+The dataset yields following observations for the `LifetimeGross` of ranked movies: while the minimum price is $`r prettyNum(min(movie$LifetimeGross), big.mark=',')`, the maximum price is $`r prettyNum(max(movie$LifetimeGross), big.mark=',')` (fairly wide range); the mean is $`r prettyNum(mean(movie$LifetimeGross), big.mark=',')` (indicating mean is higher than median, $`r prettyNum(median(movie$LifetimeGross), big.mark=',')`, which means the shape of distribution is right-skewed as further indicated by the histogram below); the standard deviation is $`r prettyNum(sd(movie$LifetimeGross), big.mark=',')`.
+
+```{r include=F}
+#Boxplot
+#ylim = c(0,100000000)
+ggplot(movie, aes(y=LifetimeGross)) +
+  geom_boxplot(na.rm = T, colour="sky blue", outlier.colour="dark blue", outlier.shape=8, outlier.size=4) +
+  coord_cartesian() +
+  labs(title = "Boxplot of Domestic Lifetime Gross", x= "Rating Level", y= "Domestic Lifetime Gross($)")+
+  theme(plot.title = element_text(hjust = 0.5))+
+  scale_y_continuous(labels = label_number(scale_cut = cut_short_scale()))
+
+```
+
+```{r}
+# Histogram
+ggplot(movie, aes(x=LifetimeGross)) + 
+  geom_histogram(col='black', fill='light blue', bins = 30) + 
+  labs(title = "Histogram of Domestic Lifetime Gross") + 
+  theme(plot.title = element_text(hjust = 0.5, face="bold", size=15))+
+  scale_x_continuous("Lifetime Gross of Movie($)", labels = label_number(scale_cut = cut_short_scale()))+
+  scale_y_continuous("Frequency")
+
+# QQ plot
+qqnorm(movie$LifetimeGross, main = "QQ-Plot of Domestic Lifetime Gross")
+qqline(movie$LifetimeGross, col = 'blue')
+```
+
+Most movies earned below $250M, but some movies that have a particularly high earning is lengthening their right tail. The following readout provide to figure out if any of the variables are highly correlated with high earning.
+
+
+### 3.2 Dependent Variable
+
+Below we have some plots for each dependent variables. Upon examining graphs, `contentR` negatively correlated with earning, `LifetimeGross` is even declined over time (`Year`) (Shown the third graph), the  higher `imdbR`, the higher the earning, `rottentmtR` is not only that there is no difference in earning, but even that tends to decline, on `imdbC`, 75 percent of the movies are below `3rd Qutile` (indicating highly right-skwed), on `rottentmtC`, most movies are below `200`. 
+
+#### 3.2.1 __Conetent rating__ overview
+
+The descriptions for content rating we are dealing with are as follows: _format :_ __Content rating__ - _description_
+
+1. __G__ - For all audience. _(source: IMDB)_
+2. __PG__ -  Parental guidance suggested (mainly for under 10's). _(source: IMDB)_
+3. __PG-13__ - Parental guidance suggested for children under 13. _(source: IMDB)_
+4. __R__ - Under 17 not admitted without parent or guardian. _(source: IMDB)_
+5. __NC17__ - Under 17 not admitted. _(source: IMDB)_
+6. __NR__ - Not been submitted for a rating or an uncut version of movie. _(source: ATLAS CINEMAS)_
+
+```{r}
+# Barplot contentR
+ggplot(movie, aes(x=contentR, fill=contentR)) + 
+  geom_bar(color='black')+
+  labs(title="Barplot by Content Rating", x="Content Rating", y="Frequency", fill = "Content Rating")+
+  theme(plot.title = element_text(hjust = 0.5, face = 'bold', size=15))
+
+# Boxplot contentR
+ggplot(movie, aes(x=contentR, y=LifetimeGross, fill=contentR)) +
+  geom_boxplot(na.rm = TRUE, outlier.shape = NA) +
+  coord_cartesian(ylim = c(0,200000000)) +
+  labs(title = "Boxplot of Lifetime Gross by Content Rating", x= "Content Rating", y= "Domestic Lifetime Gross($)")+
+  theme(plot.title = element_text(hjust = 0.5, face = 'bold', size=15))+
+  guides(fill = guide_legend(title = "Content Rating"))+
+  scale_y_continuous(labels = label_number(scale_cut = cut_short_scale()))
+```
+
+#### 3.2.2 __Year__ overview
+
+```{r}
+# Histogram
+ggplot(movie, aes(x=Year)) +
+  geom_histogram(col='black', fill='light blue', bins = 30) +
+  labs(title = "Histogram by Year", x="Year", y="Frequency") +
+  theme(plot.title = element_text(hjust = 0.5,face='bold', size=15))
+
+# Convert year to factor (1980~1989 / 1990~1999 / 2000~2009 / 2010~ )
+year_fac <- cut(movie$Year, breaks = c(1979, 1989, 1999, 2009, Inf), labels = paste("Year ", 1:4, sep=""))
+
+# Box-plot based on each year
+ggplot(movie, aes(x=year_fac, y=LifetimeGross, fill=year_fac)) +
+  geom_boxplot(na.rm = TRUE) +
+  labs(title = "Boxplot of Lifetime Gross by Year", x= "Year", y= "Domestic Lifetime Gross($)")+
+  theme(plot.title = element_text(hjust = 0.5, face='bold', size=15))+
+  scale_fill_discrete(name = "Year", labels = c("1980~1989", "1990~1999", "2000~2009", "2010~ ")) +
+  theme(legend.title = element_text(hjust = 0.5))+
+  scale_x_discrete(labels = c("1980~1989", "1990~1999", "2000~2009", "2010~ "))+
+  scale_y_continuous(labels = label_number(scale_cut = cut_short_scale()))
+
+
+# Box-plot based on each year without outliers
+ggplot(movie, aes(x=year_fac, y=LifetimeGross, fill=year_fac)) +
+  geom_boxplot(na.rm = TRUE, outlier.shape = NA) +
+  coord_cartesian(ylim = c(0,95000000)) +
+  labs(title = "Boxplot of Lifetime Gross by Year without Outliers", x= "Year", y= "Domestic Lifetime Gross($)")+
+  theme(plot.title = element_text(hjust = 0.5, face='bold', size=15))+
+  scale_fill_discrete(name = "Year", labels = c("1980~1989", "1990~1999", "2000~2009", "2010~ ")) +
+  theme(legend.title = element_text(hjust = 0.5))+
+  scale_x_discrete(labels = c("1980~1989", "1990~1999", "2000~2009", "2010~ "))+
+  scale_y_continuous(labels = label_number(scale_cut = cut_short_scale()))
+
+```
+Over time, the movie industry grows, and the movies that consumers can choose from have diversified and increased. Regardless of the development of the movie industry, the movie earnings over time have a reducing tendency than before except for the top few that generated extremely high earnings, which are outliers.
+
+#### 3.2.3 __IMDB rating__ overview
+
+```{r include=FALSE}
+summary(movie$imdbR)
+sd(movie$imdbR) 
+```
+
+```{r}
+par(mfrow = c(1,2))
+
+# Histogram
+ggplot(movie, aes(x=imdbR)) + 
+  geom_histogram(col='black', fill='light blue', binwidth = 0.1) + 
+  labs(title = "Histogram of IMDB Rating") + 
+  theme(plot.title = element_text(hjust = 0.5, face="bold", size=15))+
+  scale_x_continuous("IMDB Rating", labels = label_number(scale_cut = cut_short_scale()))+
+  scale_y_continuous("Frequency")+
+  theme(plot.title = element_text(hjust = 0.5))
+
+# Boxplot
+# Convert imdbRating into factor
+imdbR_fac <- cut(movie$imdbR, breaks = c(1, 3.9, 7.9, Inf), labels = paste("IMDB R ", 1:3, sep=""))
+
+# Box-plot based on each IMDB Rating range without outliers
+ggplot(movie, aes(x=imdbR_fac, y=LifetimeGross, fill=imdbR_fac)) +
+  geom_boxplot(na.rm = T, outlier.shape = NA) +
+  coord_cartesian(ylim = c(0,250000000)) +
+  labs(title = "Boxplot of Lifetime Gross by IMDB Rating", x= "IMDB Rating", y= "Domestic Lifetime Gross($)")+
+  theme(plot.title = element_text(hjust = 0.5, face='bold'))+
+  scale_y_continuous(labels = label_number(scale_cut = cut_short_scale()))+
+  scale_fill_discrete(name = "IMDB Rating", labels = c("1~3.9", "4~7.9", "8~ ")) +
+  theme(legend.title = element_text(hjust = 0.5))+
+  scale_x_discrete(labels = c("1~3.9", "4~7.9", "8~ "))
+```
+
+
+#### 3.2.4 __Rotten Tomatoes rating__ overview
+
+```{r include=FALSE}
+summary(movie$rottentmtR)
+sd(movie$rottentmtR)
+```
+
+```{r}
+# Histogram
+ggplot(movie, aes(x=rottentmtR)) +
+  geom_histogram(binwidth =2, color = 'darkblue', fill = 'lightblue') +
+  labs(title = "Histogram of Rotten Tomatoes Rating", x="Rotten Tomatoes Rating", y="Frequency") +
+  theme(plot.title = element_text(hjust = 0.5, face = 'bold', size = 15))
+
+
+# Convert rtRating into factor
+rtR_fac <- cut(movie$rottentmtR, breaks = c(-1, 39, 79, Inf), labels = paste("rt R ", 1:3, sep=""))
+
+# Box-plot based on each rtRating range without outliers
+ggplot(movie, aes(x=rtR_fac, y=LifetimeGross, fill=rtR_fac)) +
+  geom_boxplot(na.rm = F, outlier.shape = NA) +
+  coord_cartesian(ylim = c(0,100000000)) +
+  labs(title = "Boxplot of Lifetime Gross by Rotten Tomatoes Rating", x= "Rotten Tomatoes Rating", y= "Domestic Lifetime Gross($)")+
+  theme(plot.title = element_text(hjust = 0.5, face = 'bold', size =15))+
+  scale_y_continuous(labels = label_number(scale_cut = cut_short_scale()))+
+  scale_fill_discrete(name = "RT Rating", labels = c("0~39", "40~79", "80~ ")) +
+  theme(legend.title = element_text(hjust = 0.5))+
+  scale_x_discrete(labels = c("0~39", "40~79", "80~ "))
+```
+
+Unlike `imdbR`, `rottentmtR` represents an expert critique score. Good ratings from professionals do not necessarily guarantee high earnings because the public who has influence on movie earning tends to think that high cinematic quality movies are esoteric and convoluted.
+
+
+#### 3.2.5 __IMDB count__ overview
+```{r include=F}
+summary(movie$imdbC)
+```
+
+```{r}
+ggplot(movie, aes(x=imdbC)) +
+  geom_histogram(binwidth =50000, color = 'darkblue', fill = 'lightblue') +
+  labs(title = "Histogram of IMDB Count", x="IMDB Count", y="Frequency") +
+  theme(plot.title = element_text(hjust = 0.5, face = 'bold', size = 15))+
+  scale_x_continuous(labels = label_number(scale_cut = cut_short_scale()))
+```
+
+
+#### 3.2.6 __Rotten Tomatoes count__ overview
+
+```{r include=F}
+summary(movie$rottentmtC)
+```
+
+```{r}
+ggplot(movie, aes(x=rottentmtC)) +
+  geom_histogram(binwidth =5, color = 'darkblue', fill = 'lightblue') +
+  labs(title = "Histogram of Rotten Tomatoes Count", x="Rotten Tomatoes Count", y="Frequency") +
+  theme(plot.title = element_text(hjust = 0.5, face = 'bold', size = 15))
+```
+
+# 4. Variables EDA: Finding out Correlation
+
+Now that we have investigated slices of the data, we can delve deeper with correlation test. 
+
+### 4.1 SMART Question: Does __rating__ affect to box office performance?
+
+```{r include=F}
+# Removing outliers
+nooutlierimdbR <- outlierKD2(movie, imdbR, rm=T, boxplt = T, histogram = T)
+nooutlierR <- outlierKD2(nooutlierimdbR, rottentmtR, rm=T, boxplt = T, histogram = T)
+
+summary(movie$imdbR)
+summary(nooutlierR$imdbR)
+
+summary(movie$rottentmtR)
+summary(nooutlierR$rottentmtR)
+```
+
+#### 4.1.1 __IMDB Rating__ 
+
+From the scatterplot and correlation test for `imdbR`, it's apparent that there is no strong correlation between `imdbR` and `LifetimeGross` with not meaningful correlation coefficient value, `r cor.test(nooutlierR$imdbR, nooutlierR$LifetimeGross)$estimate`.
+
+##### 4.1.1.1 Scatterplot and Correlation Test
+```{r echo=FALSE, warning=FALSE, message=F}
+# Scatterplot for imdbRating
+ggplot(nooutlierR, aes(x=imdbR, y=LifetimeGross))+
+  geom_point()+
+  geom_smooth(method=lm) +
+  labs(title = "Scatterplot of IMDB Rating", x="IMDB Rating", y="Lifetime Gross($)")+
+  theme(plot.title = element_text(hjust = 0.5, face='bold', size=15))+
+  scale_y_continuous(labels = label_number(scale_cut = cut_short_scale()))
+
+# Correaltion between imdbR and earning
+cor.test(nooutlierR$imdbR, nooutlierR$LifetimeGross)
+```
+##### 4.1.1.2 Hypothesis Test 
+Now, let's take a look at the same data for a hypothesis test; for the test, we did subset for rating by 3 groups (1 to 3.9, 4 to 7.9, 8 to 10) like 3.2.3 section, `imdbR`'s overview. But after removing outliers, several low rating was considered of outliers and converted to NA value, so there is no value on low group. We compared middle and high group. 
+
+
+
+```{r include=F}
+lowimdbR <- subset(nooutlierR, imdbR < 4)
+midimdbR <- subset(nooutlierR, imdbR >= 4 & imdbR < 8)
+highimdbR <- subset(nooutlierR, imdbR >= 8)
+```
+
+```{r include=F}
+# Normality check
+
+# Histogram of mid
+ggplot(midimdbR, aes(x=imdbR)) + 
+  geom_histogram(col='black', fill='light blue', binwidth = 0.1) + 
+  labs(title = "Histogram of IMDB Middle Rating w/out Outliers") + 
+  theme(plot.title = element_text(hjust = 0.5, face="bold", size=15))+
+  scale_x_continuous("IMDB Rating", labels = label_number(scale_cut = cut_short_scale()))+
+  scale_y_continuous("Frequency")+
+  theme(plot.title = element_text(hjust = 0.5))
+
+# Histogram of high
+ggplot(highimdbR, aes(x=imdbR)) + 
+  geom_histogram(col='black', fill='light blue') + 
+  labs(title = "Histogram of IMDB High Rating w/out Outliers") + 
+  theme(plot.title = element_text(hjust = 0.5, face="bold", size=15))+
+  scale_x_continuous("IMDB Rating", labels = label_number(scale_cut = cut_short_scale()))+
+  scale_y_continuous("Frequency")+
+  theme(plot.title = element_text(hjust = 0.5))
+
+# QQ plot of mid 
+qqnorm(midimdbR$imdbR, main="IMDB Middle Rating Q-Q plot \n(outliers removed)", ylab = "IMDB Rating") 
+qqline(midimdbR$imdbR)
+# QQ plot of high
+qqnorm(highimdbR$imdbR, main="IMDB High Rating Q-Q plot \n(outliers removed)", ylab = "IMDB Rating") 
+qqline(highimdbR$imdbR)
+
+```
+```{r}
+ttestimdbR = t.test(midimdbR$imdbR, highimdbR$imdbR)
+ttestimdbR
+```
+
+The mean for middle and high rating groups are `r format(ttestimdbR$estimate)` respectively. The p-value for these two groups is `r format(ttestimdbR$p.value)`, thus rejected the null that these two groups are the same.
+
+##### 4.1.1.3 Chi-Test
+
+#### 4.1.2 __Rotten Tomatoes Rating__ 
+
+##### 4.1.2.1 Scatterplot and Correlation Test
+As for `RottentmtR`, it exhibits similar behavior as `imdbR` data as well. It is even more clear that there is no strong correlation between `rottentmtR` and `LifetimeGross` with not meaningful correlation coefficient value, `r cor.test(nooutlierR$rottentmtR, nooutlierR$LifetimeGross)$estimate`.
+
+```{r}
+# Scatterplot for rtRating
+ggplot(nooutlierR, aes(x=rottentmtR, y=LifetimeGross))+
+  geom_point()+
+  geom_smooth(method=lm) +
+  labs(title = "Scatterplot of Rotten Tomatoes Rating", x="Rotten Tomatoes Rating", y="Lifetime Gross($)")+
+  theme(plot.title = element_text(hjust = 0.5, face='bold', size=15))+
+  scale_y_continuous(labels = label_number(scale_cut = cut_short_scale()))
+
+cor.test(nooutlierR$rottentmtR, nooutlierR$LifetimeGross)
+```
+
+##### 4.1.2.2 Hypothesis Test
+
+Similarly with `imdbR`, let's look at a hypothesis test; for the test, we did subset for rating by 3 groups (0 to 39, 40 to 79, 80 to 100) like 3.2.4 section, `rottentmtR`'s overview.  
+
+```{r include=F}
+lowrtR <- subset(nooutlierR, rottentmtR < 39)
+midrtR <- subset(nooutlierR, rottentmtR >= 40 & imdbR < 80)
+highrtR <- subset(nooutlierR, rottentmtR >= 80)
+```
+
+```{r include=F}
+# Normality check
+
+# Histogram of low
+ggplot(lowrtR, aes(x=rottentmtR)) + 
+  geom_histogram(col='black', fill='light blue') + 
+  labs(title = "Histogram of Rotten Tomatoes Low Rating \n w/out Outliers") + 
+  theme(plot.title = element_text(hjust = 0.5, face="bold", size=15))+
+  scale_x_continuous("Rotten Tomatoes Rating", labels = label_number(scale_cut = cut_short_scale()))+
+  scale_y_continuous("Frequency")+
+  theme(plot.title = element_text(hjust = 0.5))
+
+# Histogram of mid
+ggplot(midrtR, aes(x=rottentmtR)) + 
+  geom_histogram(col='black', fill='light blue') + 
+  labs(title = "Histogram of Rotten Tomatoes Low Rating \n w/out Outliers") + 
+  theme(plot.title = element_text(hjust = 0.5, face="bold", size=15))+
+  scale_x_continuous("Rotten Tomatoes Rating", labels = label_number(scale_cut = cut_short_scale()))+
+  scale_y_continuous("Frequency")+
+  theme(plot.title = element_text(hjust = 0.5))
+
+# Histogram of high
+ggplot(highrtR, aes(x=rottentmtR)) + 
+  geom_histogram(col='black', fill='light blue') + 
+  labs(title = "Histogram of Rotten Tomatoes High Rating \n w/out Outliers") + 
+  theme(plot.title = element_text(hjust = 0.5, face="bold", size=15))+
+  scale_x_continuous("Rotten Tomatoes Rating", labels = label_number(scale_cut = cut_short_scale()))+
+  scale_y_continuous("Frequency")+
+  theme(plot.title = element_text(hjust = 0.5))
+
+# QQ plot of low
+qqnorm(lowrtR$rottentmtR, main="Rotten Tomatoes Low Rating Q-Q plot \n(outliers removed)", ylab = "Rotten Tomatoes Rating") 
+qqline(lowrtR$rottentmtR)
+# QQ plot of middle
+qqnorm(midrtR$rottentmtR, main="Rotten Tomatoes Middle Rating Q-Q plot \n(outliers removed)", ylab = "Rotten Tomatoes Rating") 
+qqline(midrtR$rottentmtR)
+# QQ plot of high
+qqnorm(highrtR$rottentmtR, main="Rotten Tomatoes High Rating Q-Q plot \n(outliers removed)", ylab = "Rotten Tomatoes Rating") 
+qqline(highrtR$rottentmtR)
+```
+
+```{r}
+# Low & Middle group ttest
+ttestrtR_lowtomid <- t.test(lowrtR$rottentmtR, midrtR$rottentmtR)
+ttestrtR_lowtomid
+# Middle & High group ttest
+ttestrtR_midtohigh <- t.test(midrtR$rottentmtR, highrtR$rottentmtR)
+ttestrtR_midtohigh
+```
+
+The mean for low and middle rating groups are `r format(ttestrtR_lowtomid$estimate)` respectively. The p-value for these two groups is `r format(ttestrtR_lowtomid$p.value)`, thus rejected the null that these two groups are the same.
+
+The mean for middle and high rating groups are `r format(ttestrtR_midtohigh$estimate)` respectively. The p-value for these two groups is `r format(ttestrtR_midtohigh$p.value)`, thus rejected the null that these two groups are the same.
+
+##### 4.1.2.3 Chi Test
+
+### 4.2 SMART Question: Does __count__ affect to box office performance?
+```{r include=F}
+# Removing outliers from count
+nooutlierimdbC <- outlierKD2(movie, imdbC, rm=T, boxplt = T, histogram = T)
+nooutlierC <- outlierKD2(nooutlierimdbC, rottentmtR, rm=T, boxplt = T, histogram = T)
+
+summary(movie$imdbC)
+summary(nooutlierC$imdbC)
+
+summary(movie$rottentmtC)
+summary(nooutlierC$rottentmtC)
+```
+#### 4.2.1 __IMDB Count__
+
+##### 4.2.1.1 Scatterplot and Correlation Test
+From the scatterplot and correlation test for `imdbC`, it's apparent that there is a correlation between `imdbC` and `LifetimeGross` with  meaningful correlation coefficient value, `r cor.test(nooutlierC$imdbC, nooutlierC$LifetimeGross)$estimate`.
+
+```{r}
+# Scatterplot for imdbC
+ggplot(nooutlierC, aes(x=imdbC, y=LifetimeGross))+
+  geom_point()+
+  geom_smooth(method=lm)+
+  labs(title = "Scatterplot of IMDB Count", x="IMDB Count", y="Lifetime Gross($)")+
+  theme(plot.title = element_text(hjust = 0.5))+
+  scale_y_continuous(labels = label_number(scale_cut = cut_short_scale()))
+
+# Correaltion between imdbCount and gross
+cor.test(nooutlierC$imdbC, nooutlierC$LifetimeGross)
+
+```
+##### 4.2.1.2 Hypothesis Test
+##### 4.2.1.3 Chi Test
+
+#### 4.2.2 __Rotten Tomatoes Count__
+
+##### 4.2.2.1 Scatterplot and Correlation Test
+From the scatterplot and correlation test for `rottentmtC`, it's apparent that there is a significant correlation between `rottentmtC` and `LifetimeGross` with  meaningful correlation coefficient value, `r cor.test(nooutlierC$rottentmtC, nooutlierC$LifetimeGross)$estimate`.
+
+```{r}
+# Scatterplot for rtCount
+ggplot(nooutlierC, aes(x=rottentmtC, y=LifetimeGross))+
+  geom_point()+
+  geom_smooth(method=lm)+
+  labs(title = "Scatter Plot for Rotten Tomatoes Count", x="Rotten Tomatoes Count", y="Lifetime Gross($)")+
+  theme(plot.title = element_text(hjust = 0.5))+
+  scale_y_continuous(labels = label_number(scale_cut = cut_short_scale()))
+
+# Correlation between rottentmtC and gross
+cor.test(nooutlierC$rottentmtC, nooutlierC$LifetimeGross)
+```
+
+##### 4.2.2.2 Hypothesis Test
+##### 4.2.2.3 Chi Test
+
+### 4.3 SMART Question: Does __content rating__ affect to box office performance?
+
+```{r}
+# Chi Test
+```
+
+
+
+# 5. Linear Regression Model
+
+```{r includes=F}
+movie_num <- subset (movie, select = -c(Title, contentR ))
+movie_num <- na.omit(movie_num)
+```
+
+First, following table is the correlation for all numerical variables.
+
+```{r corplot, echo=FALSE}
+corm <- cor(movie_num)
+corrplot.mixed(corm)
+```
+
+### 5.1 Model Fitting: Goals and Overview
+
+We fit several models with the goal of finding which combination of predictors worked best for predicting domestic lifetime gross. Out initial strategy was to use a correlation plot and forward selection to find the best combination of numerical predictors. Then, due to our finding in the EDA process, we added content rating to the best model to see if that improved model performance. We found that the best model included number of IMDb ratings, number of Rotten Tomatos ratings, and Content Rating as predictors for domestic lifetime gross. It is worth noting that during the EDA process, we did discover that several model conditions were not being met in particular the normality assumption. However, because our somple size is so large, we still proceeded to fit these linear models. 
+
+### 5.2 Model Results Summary and Interpretations
+
+Model 1: Lifetime Gross = bo + b1xIMDbC
+  H0: b1 = 0 (IMDb count has no significant effect on Lifetime gross)
+  Ha: b1 != 0 (There is some effect)
+```{r lm1, results='markup'}
+lm1 <- lm(LifetimeGross~imdbC, data = movie)
+summary(lm1)
+```
+
+The t-statistic for the coefficient on `imdbC` is 67.63, which gives a p-value of approximately 0. Therefore we can reject the null hypothesis and conclude that there is strong evidence that `imdbC` has a positive relationship with lifetime gross.
+
+Model 2: Lifetime Gross = bo + b1xIMDbCount + b2xRTCount
+  H0: b2 = 0 (Rotten Tomato count has no significant effect on Lifetime gross)
+  Ha: b2 != 0 (There is some effect)
+  
+```{r lm2, results='markup'}
+lm2 <- lm(LifetimeGross~imdbC+rottentmtC, data = movie)
+summary(lm2)
+```
+
+The t-statistic for the coefficient on rtCount is 29.16. This gives a p-value of approximately 0. Therefore, there is strong evidence that the number of rotten tomatoes reviews has a statistically significant positive relationship with domestic lifetime gross.
+
+Model 3: Lifetime Gross = bo + b1xIMDbCount + b2xRTCount + b3xruntime
+  H0: b3 = 0 (Runtime has no significant effect on Lifetime gross)
+  Ha: b3 != 0 (There is some effect)
+
+```{r lm3, results='markup'}
+lm3 <- lm(LifetimeGross~imdbC+rottentmtC+Runtime, data = movie)
+summary(lm3)
+```
+
+The t-statistic for runtime is 1.834, which gives a p-value of 0.0667. There is no evidence that there is a statistically significant relationship between runtime and domestic lifetime gross. For this reason, we rejected this predictor from our model.
+
+ANOVA: Models 1, 2, & 3
+```{r anova, eval=FALSE, include=FALSE, results='markup'}
+anova(lm3, lm2, lm1)
+```
+
+The F-statistic comparing models 2 and 3 is 3.363, which gives a p-value of 0.0667. Therefore there is no evidence that model 3 is performing significantly better than model 2, therefore we rejected model 3. The F-statistic comparing models 1 and 2 is 850.7, which gives a p-value of approximately 0. Therefore, there is strong evidence that model 2 performs better than model 1, therfore we accepted model 2 as our best model.
+
+Model 4: Lifetime Gross = bo + b1xIMDbCount + b2xRTCount + *b3*XcontentRating
+  H0: all b3i = 0, where i represents the levels of content rating (content rating has no significant effect on Lifetime gross)
+  Ha: some b3i != 0 (Some level of content rating has an effect)
+  
+```{r content rating lm, results='markup'}
+lm4 <- lm(LifetimeGross~imdbC+rottentmtC+contentR, data = movie)
+summary(lm4)
+
+```
+
+The coefficients for all ratings have p-values of approximately 0. For this reason, we can reject our null hypothesis and say that at least one coefficient for content rating is not zero. There is strong evidence that content rating has a statisitically significant relationship with domestic lifetime gross. 
+
+ANOVA: Models 2 & 4
+```{r anova cont rating, results='markup'}
+anova(lm4, lm2)
+```
+
+The F-statistic for comparing models 2 and 4 is 118.41, which gives a p-value of approximately 0. Therefore there is strong evidence that model 4, which includes content rating, is performing statistically significantly better than model 2. We selected model 4 as our final model.
+  
+### 5.3 Model Conclusions
+Our model illustrates that the number of reviews on both rotten tomatoes and IMDb, along with content rating, are the best combinations of variables to predict domestic lifetime gross (R^2= 0.4693). We can generally say that popularity of the movie is more important than the extent to which it is critically acclaimed. Even if it is considered 'bad' by critics, if enough people are talking about it on these online platforms, it can expect to make money either way. In addition, as the movie's rating gets more restrictive, it can expect to make less money. This also intuitively made sense to us, as children and teens make up a large portion of movie audiences. If this part of the population is unable to go see certain films, like those rated R, this will be reflected in slightly lower box office sales. Another factor which could impact this is that big, high earning blockbuster films, like super hero movies, tend to have a lower rating of either G or PG so that children can see them in theaters.
+
+# 6. Conclusion
+
+### 6.1 Limitations
+
+The main goal when analyze data and drawing conclusions is to have a sample representative of the given population. We should be able to infer the population based on our analysis of the sample. Although we used data from two very popular rating sites, we must acknowledge that there are many more rating sites that people use to rate movies. The issue in using these various sites was that the data was either unavailable without a fee or was very incomplete, which could skew our data. We thought it would be best to use the most complete data from two popular rating websites. In doing so, we also acknowledge that this may not be the most representative sample. Although, with close to 8,000 observations, this is still a robust dataset. 
+
+
+### 6.2 Future Research
+
+There are many avenues for future research to be explored. Within the scope of this class, we can re-analyze the data while accounting for inflation throughout the years. Considering the year of release spanning 110 years, the rate of inflation could alter the results quite drastically. In the same realm, we can analyze the data through time series, especially during the pandemic from 2019-2022, and how that affected box office sales. Around this time, streaming platforms also became increasingly popular since many people were in lockdown, which negatively impacted box office sales. 
+
+
+# 7. Bibliography
+
+Scott, G. Determinants of box office performance: Return of the regressions. Retrieved October 28, 2022, from https://scholarworks.uni.edu/cgi/viewcontent.cgi?article=1143&amp;context=mtie 

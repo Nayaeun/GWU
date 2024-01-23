@@ -1,0 +1,467 @@
+---
+title: "Box Office Performance "
+author: "Arjun Bingly, Caroline Krall, Nayaeun Kwon, Tara Thomas"
+date: "2022-10-23"
+output:
+  prettydoc::html_pretty:
+    theme: cayman
+    number_sections: false
+    toc: yes
+    toc_depth: 3
+  pdf_document:
+    toc: yes
+    toc_depth: '3'
+---
+```{r include=FALSE}
+# Setting Environment 
+
+library(dplyr)
+library(tidyr)
+library(ggplot2)
+library(ezids)
+library(scales)
+loadPkg("corrplot")
+
+knitr::opts_chunk$set(echo=FALSE, warning=FALSE, fig.align = 'center', error = F, message = F)
+options(scipen=999)
+```
+
+
+
+```{r include=F}
+# Importing dataset 
+filepath = "movies.csv" 
+org_movie <- read.csv(filepath)
+head(org_movie)
+colnames(org_movie)
+
+# Changing column name
+vars <- c("primaryTitle","lifetime_gross","content_rating","year","runtimeMinutes","averageRating","tomatometer_rating","numVotes","tomatometer_count") 
+# List of new col names
+nvars <- c("Title","LifetimeGross","contentR","Year","Runtime","imdbR","rottentmtR","imdbC","rottentmtC") 
+
+# Creating new df with only cols in vars
+movie <- org_movie[vars] 
+colnames(movie) <- nvars #renaming using nvars
+head(movie)
+
+# Exporting to csv
+write.csv(movie,"movie_reduced.csv")
+```
+
+
+```{r include=F}
+# Setting New Dataset
+movie <- read.csv("movie_reduced.csv")
+movie <- na.omit(movie)
+
+movie <- subset(movie, select = -c(X) )
+
+movie$Runtime <- as.numeric(movie$Runtime)
+movie$contentR <- factor(movie$contentR, levels = c("G", "PG", "PG-13", "R", "NC17", "NR"))
+
+summary(movie)
+```
+
+```{r echo=FALSE}
+xkablesummary(movie)
+```
+
+Variable descriptions are as follows:
+_format :_ __col name__ - _description_
+
+1. __Title__ - The title of  the movie. _(source: IMDB)_
+2. __LifetimeGross__ -  The domestic lifetime gross of the movie in USD (not accounting inflation). _(source: Box Office Mojo)_
+3. __contentR__ - The category based on the movie suitability for audience. _(source: Rotten Tomatoes)_
+4. __Year__ - The year of movie release. _(source: IMDB)_
+5. __Runtime__ - The movie run time in minutes. _(source: IMDB)_
+6. __imdbR__ -  The IMDB rating from 1 to 10, average of user votes. _(source: IMDB)_
+7. __rottentmtR__ - The percentage of positive critic reviews from 1 to 100. _(source: Rotten Tomatoes)_
+8. __imdbC__ - The number of votes that went into the IMDB rating. _(source: IMDB)_
+9. __rottentmtC__ - The number of critic ratings counted for tomatometer rating. _(source: Rotten Tomatoes)_
+
+
+# 3. Variable EDA: Slicing the Data for an Overview
+
+```{r include=F}
+summary(movie$LifetimeGross)
+```
+
+
+### 3.1 Independent Variable: __Lifetime Gross__ Overveiw
+
+```{r include=F}
+#Boxplot of Lifetime Gross
+ggplot(movie, aes(y=LifetimeGross)) +
+  geom_boxplot(na.rm = T, colour="sky blue", outlier.colour="dark blue", outlier.shape=8, outlier.size=4) +
+  coord_cartesian() +
+  labs(title = "Boxplot of Domestic Lifetime Gross", x= "Rating Level", y= "Domestic Lifetime Gross($)")+
+  theme(plot.title = element_text(hjust = 0.5))+
+  scale_y_continuous(labels = label_number(scale_cut = cut_short_scale()))
+
+```
+
+```{r}
+# Histogram of Lifetime Gross
+ggplot(movie, aes(x=LifetimeGross)) + 
+  geom_histogram(col='black', fill='light blue', bins = 30) + 
+  labs(title = "Histogram of Domestic Lifetime Gross") + 
+  theme(plot.title = element_text(hjust = 0.5, face="bold", size=15))+
+  scale_x_continuous("Lifetime Gross of Movie($)", labels = label_number(scale_cut = cut_short_scale()))+
+  scale_y_continuous("Frequency")
+
+# QQ plot of lifetime Gross
+qqnorm(movie$LifetimeGross, main = "QQ-Plot of Domestic Lifetime Gross")
+qqline(movie$LifetimeGross, col = 'blue')
+```
+
+### 3.2 Dependent Variable
+
+#### 3.2.1 __Content rating__ overview
+
+The descriptions for content rating we are dealing with are as follows: _format :_ __Content rating__ - _description_
+
+1. __G__ - For all audience. _(source: IMDB)_
+2. __PG__ -  Parental guidance suggested (mainly for under 10's). _(source: IMDB)_
+3. __PG-13__ - Parental guidance suggested for children under 13. _(source: IMDB)_
+4. __R__ - Under 17 not admitted without parent or guardian. _(source: IMDB)_
+5. __NC17__ - Under 17 not admitted. _(source: IMDB)_
+6. __NR__ - Not been submitted for a rating or an uncut version of movie. _(source: ATLAS CINEMAS)_
+
+```{r}
+# Barplot of content rating
+ggplot(movie, aes(x=contentR, fill=contentR)) + 
+  geom_bar(color='black')+
+  labs(title="Barplot by Content Rating", x="Content Rating", y="Frequency", fill = "Content Rating")+
+  theme(plot.title = element_text(hjust = 0.5, face = 'bold', size=15))
+
+# Boxplot of content rating
+ggplot(movie, aes(x=contentR, y=LifetimeGross, fill=contentR)) +
+  geom_boxplot(na.rm = TRUE, outlier.shape = NA) +
+  coord_cartesian(ylim = c(0,200000000)) +
+  labs(title = "Boxplot of Lifetime Gross by Content Rating", x= "Content Rating", y= "Domestic Lifetime Gross($)")+
+  theme(plot.title = element_text(hjust = 0.5, face = 'bold', size=15))+
+  guides(fill = guide_legend(title = "Content Rating"))+
+  scale_y_continuous(labels = label_number(scale_cut = cut_short_scale()))
+```
+
+#### 3.2.2 __Year__ overview
+
+```{r}
+# Histogram of year
+ggplot(movie, aes(x=Year)) +
+  geom_histogram(col='black', fill='light blue', bins = 30) +
+  labs(title = "Histogram by Year", x="Year", y="Frequency") +
+  theme(plot.title = element_text(hjust = 0.5,face='bold', size=15))
+
+# Convert year to factor (1980~1989 / 1990~1999 / 2000~2009 / 2010~ ) to figure out earning changing over time
+year_fac <- cut(movie$Year, breaks = c(1979, 1989, 1999, 2009, Inf), labels = paste("Year ", 1:4, sep=""))
+
+# Boxplot based on each year
+ggplot(movie, aes(x=year_fac, y=LifetimeGross, fill=year_fac)) +
+  geom_boxplot(na.rm = TRUE) +
+  labs(title = "Boxplot of Lifetime Gross by Year", x= "Year", y= "Domestic Lifetime Gross($)")+
+  theme(plot.title = element_text(hjust = 0.5, face='bold', size=15))+
+  scale_fill_discrete(name = "Year", labels = c("1980~1989", "1990~1999", "2000~2009", "2010~ ")) +
+  theme(legend.title = element_text(hjust = 0.5))+
+  scale_x_discrete(labels = c("1980~1989", "1990~1999", "2000~2009", "2010~ "))+
+  scale_y_continuous(labels = label_number(scale_cut = cut_short_scale()))
+
+
+# Boxplot based on each year without outliers
+ggplot(movie, aes(x=year_fac, y=LifetimeGross, fill=year_fac)) +
+  geom_boxplot(na.rm = TRUE, outlier.shape = NA) +
+  coord_cartesian(ylim = c(0,95000000)) +
+  labs(title = "Boxplot of Lifetime Gross by Year without Outliers", x= "Year", y= "Domestic Lifetime Gross($)")+
+  theme(plot.title = element_text(hjust = 0.5, face='bold', size=15))+
+  scale_fill_discrete(name = "Year", labels = c("1980~1989", "1990~1999", "2000~2009", "2010~ ")) +
+  theme(legend.title = element_text(hjust = 0.5))+
+  scale_x_discrete(labels = c("1980~1989", "1990~1999", "2000~2009", "2010~ "))+
+  scale_y_continuous(labels = label_number(scale_cut = cut_short_scale()))
+
+```
+
+#### 3.2.3 __IMDB rating__ overview
+
+```{r include=FALSE}
+summary(movie$imdbR)
+sd(movie$imdbR) 
+```
+
+```{r}
+# Histogram of IMDB rating
+ggplot(movie, aes(x=imdbR)) + 
+  geom_histogram(col='black', fill='light blue', binwidth = 0.1) + 
+  labs(title = "Histogram of IMDB Rating") + 
+  theme(plot.title = element_text(hjust = 0.5, face="bold", size=15))+
+  scale_x_continuous("IMDB Rating", labels = label_number(scale_cut = cut_short_scale()))+
+  scale_y_continuous("Frequency")+
+  theme(plot.title = element_text(hjust = 0.5))
+
+# Convert IMDB Rating into factor to figure out change of earning by rating range
+imdbR_fac <- cut(movie$imdbR, breaks = c(1, 3.9, 7.9, Inf), labels = paste("IMDB R ", 1:3, sep=""))
+
+# Boxplot based on each IMDB Rating range without outliers
+ggplot(movie, aes(x=imdbR_fac, y=LifetimeGross, fill=imdbR_fac)) +
+  geom_boxplot(na.rm = T, outlier.shape = NA) +
+  coord_cartesian(ylim = c(0,250000000)) +
+  labs(title = "Boxplot of Lifetime Gross by IMDB Rating \n w/out outliers", x= "IMDB Rating", y= "Domestic Lifetime Gross($)")+
+  theme(plot.title = element_text(hjust = 0.5, face='bold'))+
+  scale_y_continuous(labels = label_number(scale_cut = cut_short_scale()))+
+  scale_fill_discrete(name = "IMDB Rating", labels = c("1~3.9", "4~7.9", "8~ ")) +
+  theme(legend.title = element_text(hjust = 0.5))+
+  scale_x_discrete(labels = c("1~3.9", "4~7.9", "8~ "))
+```
+
+
+#### 3.2.4 __Rotten Tomatoes rating__ overview
+
+```{r include=FALSE}
+summary(movie$rottentmtR)
+sd(movie$rottentmtR)
+```
+
+```{r}
+# Histogram of rotten tomatoes rating
+ggplot(movie, aes(x=rottentmtR)) +
+  geom_histogram(binwidth =2, color = 'darkblue', fill = 'lightblue') +
+  labs(title = "Histogram of Rotten Tomatoes Rating", x="Rotten Tomatoes Rating", y="Frequency") +
+  theme(plot.title = element_text(hjust = 0.5, face = 'bold', size = 15))
+
+
+# Convert rottentmtR into factor to figure out the change of earning by rotten tomatoes rating
+rtR_fac <- cut(movie$rottentmtR, breaks = c(-1, 39, 79, Inf), labels = paste("rt R ", 1:3, sep=""))
+
+# Boxplot based on each rtRating range without outliers
+ggplot(movie, aes(x=rtR_fac, y=LifetimeGross, fill=rtR_fac)) +
+  geom_boxplot(na.rm = F, outlier.shape = NA) +
+  coord_cartesian(ylim = c(0,100000000)) +
+  labs(title = "Boxplot of Lifetime Gross by Rotten Tomatoes Rating \n w/out outliers", x= "Rotten Tomatoes Rating", y= "Domestic Lifetime Gross($)")+
+  theme(plot.title = element_text(hjust = 0.5, face = 'bold', size =15))+
+  scale_y_continuous(labels = label_number(scale_cut = cut_short_scale()))+
+  scale_fill_discrete(name = "RT Rating", labels = c("0~39", "40~79", "80~ ")) +
+  theme(legend.title = element_text(hjust = 0.5))+
+  scale_x_discrete(labels = c("0~39", "40~79", "80~ "))
+```
+
+#### 3.2.5 __IMDB count__ overview
+```{r include=F}
+summary(movie$imdbC)
+```
+
+```{r}
+ggplot(movie, aes(x=imdbC)) +
+  geom_histogram(binwidth =50000, color = 'darkblue', fill = 'lightblue') +
+  labs(title = "Histogram of IMDB Count", x="IMDB Count", y="Frequency") +
+  theme(plot.title = element_text(hjust = 0.5, face = 'bold', size = 15))+
+  scale_x_continuous(labels = label_number(scale_cut = cut_short_scale()))
+```
+
+
+#### 3.2.6 __Rotten Tomatoes count__ overview
+
+```{r include=F}
+summary(movie$rottentmtC)
+```
+
+```{r}
+ggplot(movie, aes(x=rottentmtC)) +
+  geom_histogram(binwidth =5, color = 'darkblue', fill = 'lightblue') +
+  labs(title = "Histogram of Rotten Tomatoes Count", x="Rotten Tomatoes Count", y="Frequency") +
+  theme(plot.title = element_text(hjust = 0.5, face = 'bold', size = 15))
+```
+
+# 4. Variables EDA: Finding out Correlation
+
+
+### 4.1 SMART Question: Does __rating__ affect box office performance?
+
+```{r include=F}
+# Removing outliers
+nooutlierimdbR <- outlierKD2(movie, imdbR, rm=T, boxplt = T, histogram = T)
+nooutlierR <- outlierKD2(nooutlierimdbR, rottentmtR, rm=T, boxplt = T, histogram = T)
+
+summary(movie$imdbR)
+summary(nooutlierR$imdbR)
+
+summary(movie$rottentmtR)
+summary(nooutlierR$rottentmtR)
+```
+
+#### 4.1.1 __IMDB Rating__ 
+
+
+
+##### 4.1.1.1 Scatterplot and Correlation Test
+```{r echo=FALSE, warning=FALSE, message=F}
+# Scatterplot for imdbRating
+ggplot(nooutlierR, aes(x=imdbR, y=LifetimeGross))+
+  geom_point()+
+  geom_smooth(method=lm) +
+  labs(title = "Scatterplot of IMDB Rating", x="IMDB Rating", y="Lifetime Gross($)")+
+  theme(plot.title = element_text(hjust = 0.5, face='bold', size=15))+
+  scale_y_continuous(labels = label_number(scale_cut = cut_short_scale()))
+
+# Correaltion between imdbR and earning
+cor.test(nooutlierR$imdbR, nooutlierR$LifetimeGross)
+```
+##### 4.1.1.2 Hypothesis Test 
+
+```{r include=F}
+lowimdbR <- subset(nooutlierR, imdbR < 4)
+midimdbR <- subset(nooutlierR, imdbR >= 4 & imdbR < 8)
+highimdbR <- subset(nooutlierR, imdbR >= 8)
+```
+
+```{r}
+ttestimdbR = t.test(midimdbR$imdbR, highimdbR$imdbR)
+ttestimdbR
+```
+
+#### 4.1.2 __Rotten Tomatoes Rating__ 
+
+##### 4.1.2.1 Scatterplot and Correlation Test
+```{r}
+# Scatterplot for rtRating
+ggplot(nooutlierR, aes(x=rottentmtR, y=LifetimeGross))+
+  geom_point()+
+  geom_smooth(method=lm) +
+  labs(title = "Scatterplot of Rotten Tomatoes Rating", x="Rotten Tomatoes Rating", y="Lifetime Gross($)")+
+  theme(plot.title = element_text(hjust = 0.5, face='bold', size=15))+
+  scale_y_continuous(labels = label_number(scale_cut = cut_short_scale()))
+
+cor.test(nooutlierR$rottentmtR, nooutlierR$LifetimeGross)
+```
+
+##### 4.1.2.2 Hypothesis Test
+
+```{r include=F}
+lowrtR <- subset(nooutlierR, rottentmtR < 39)
+midrtR <- subset(nooutlierR, rottentmtR >= 40 & imdbR < 80)
+highrtR <- subset(nooutlierR, rottentmtR >= 80)
+```
+
+```{r}
+# Low & Middle group ttest
+ttestrtR_lowtomid <- t.test(lowrtR$rottentmtR, midrtR$rottentmtR)
+ttestrtR_lowtomid
+# Middle & High group ttest
+ttestrtR_midtohigh <- t.test(midrtR$rottentmtR, highrtR$rottentmtR)
+ttestrtR_midtohigh
+```
+
+### 4.2 SMART Question: Does __count__ affect box office performance?
+```{r include=F}
+# Removing outliers from count
+nooutlierimdbC <- outlierKD2(movie, imdbC, rm=T, boxplt = T, histogram = T)
+nooutlierC <- outlierKD2(nooutlierimdbC, rottentmtR, rm=T, boxplt = T, histogram = T)
+
+summary(movie$imdbC)
+summary(nooutlierC$imdbC)
+
+summary(movie$rottentmtC)
+summary(nooutlierC$rottentmtC)
+```
+#### 4.2.1 __IMDB Count__
+
+##### 4.2.1.1 Scatterplot and Correlation Test
+
+
+```{r}
+# Scatterplot for imdbC
+ggplot(nooutlierC, aes(x=imdbC, y=LifetimeGross))+
+  geom_point()+
+  geom_smooth(method=lm)+
+  labs(title = "Scatterplot of IMDB Count", x="IMDB Count", y="Lifetime Gross($)")+
+  theme(plot.title = element_text(hjust = 0.5))+
+  scale_y_continuous(labels = label_number(scale_cut = cut_short_scale()))
+
+# Correaltion between imdbCount and gross
+cor.test(nooutlierC$imdbC, nooutlierC$LifetimeGross)
+
+```
+
+
+#### 4.2.2 __Rotten Tomatoes Count__
+
+##### 4.2.2.1 Scatterplot and Correlation Test
+
+```{r}
+# Scatterplot for rtCount
+ggplot(nooutlierC, aes(x=rottentmtC, y=LifetimeGross))+
+  geom_point()+
+  geom_smooth(method=lm)+
+  labs(title = "Scatter Plot for Rotten Tomatoes Count", x="Rotten Tomatoes Count", y="Lifetime Gross($)")+
+  theme(plot.title = element_text(hjust = 0.5))+
+  scale_y_continuous(labels = label_number(scale_cut = cut_short_scale()))
+
+# Correlation between rottentmtC and gross
+cor.test(nooutlierC$rottentmtC, nooutlierC$LifetimeGross)
+```
+
+
+
+# 5. Linear Regression Model
+
+```{r includes=F}
+movie_num <- subset (movie, select = -c(Title, contentR ))
+movie_num <- na.omit(movie_num)
+```
+
+
+
+```{r corplot, echo=FALSE}
+corm <- cor(movie_num)
+corrplot.mixed(corm)
+```
+
+### 5.1 Model Fitting: Goals and Overview
+
+
+### 5.2 Model Results Summary and Interpretations
+
+  
+```{r include=FALSE}
+movie<- na.omit(movie)
+```
+  
+```{r lm1, results='markup'}
+lm1 <- lm(LifetimeGross~imdbC, data = movie)
+summary(lm1)
+```
+
+
+  
+```{r lm2, results='markup'}
+lm2 <- lm(LifetimeGross~imdbC+rottentmtC, data = movie)
+summary(lm2)
+```
+
+
+
+```{r lm3, results='markup'}
+lm3 <- lm(LifetimeGross~imdbC+rottentmtC+Runtime, data = movie)
+summary(lm3)
+```
+
+
+
+ANOVA: Models 1, 2, & 3
+```{r anova, results='markup'}
+anova(lm3, lm2, lm1)
+```
+
+
+  
+```{r content rating lm, results='markup'}
+lm4 <- lm(LifetimeGross~imdbC+rottentmtC+contentR, data = movie)
+summary(lm4)
+
+```
+
+
+ANOVA: Models 2 & 4
+```{r anova cont rating, results='markup'}
+anova(lm4, lm2)
+```
+

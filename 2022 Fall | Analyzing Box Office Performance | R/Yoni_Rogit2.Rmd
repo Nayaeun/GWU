@@ -1,0 +1,153 @@
+---
+title: "Logistic Regression for Genre"
+author: "Nayaeun Kwon"
+date: '2022-11-29'
+output: html_document
+---
+
+```{r include=FALSE}
+library(dplyr)
+library(tidyr)
+library(ggplot2)
+library(stringr)
+library(purrr)
+options(scipen = n)
+
+```
+
+
+```{r}
+movie <- read.csv("movies.csv")
+```
+
+## Getting rid of the unnecessary columns
+```{r}
+movie_red <-
+  movie %>%
+  select(movie_title, content_rating, genres.y, runtime, tomatometer_rating, lifetime_gross, year, averageRating, numVotes) %>%
+  rename(genre = genres.y, imbdRating = averageRating) %>%
+  na.omit()
+
+str(movie_red)
+
+movie_red$content_rating <- as.factor(movie_red$content_rating)
+str(movie_red)
+```
+
+```{r}
+movie_red %>% 
+   separate_rows(genre,sep=",") %>% 
+   count(genre) %>%
+   arrange(desc(n))
+```
+
+Drama, Comedy, Romance
+
+
+## Adding indicator variables for Genre
+
+The first thing we need to do is find which genres are the most common. I created indicator variables for the top genres and summarizes their count
+```{r}
+movie_red <-
+  movie_red %>%
+  mutate(drama = ifelse(str_detect(genre, "Drama"), 1,0),
+         comedy = ifelse(str_detect(genre, "Comedy"), 1,0),
+         romance = ifelse(str_detect(genre, "Romance"), 1,0),
+)
+```
+drama comedy romance
+
+Based on the counts above, the biggest genre categories are drama, comedy, and romance, so we will attempt to predict these genres.
+
+```{r}
+movieclean <- movie_red[, c('content_rating', 'runtime', 'tomatometer_rating', 'lifetime_gross', 'year', 'imbdRating', 'numVotes')]
+
+colnames(movie_red)
+```
+
+# drama indicator variable into y variables
+```{r}
+movieclean$y = movie_red[,10]
+movieclean$y <- as.factor(movieclean$y)
+str(movieclean)
+```
+
+```{r}
+library("leaps")
+library("bestglm")
+
+res.bestglm <-
+  bestglm(Xy = movieclean,
+          family = binomial(link = "logit"),
+          IC = "AIC",
+          method = "exhaustive")
+
+res.bestglm$BestModels
+dramaglm <- res.bestglm$BestModel
+summary(dramaglm)
+```
+The best model has AIC 9827.668 with all variables, `content_rating`, `runtime`, `tomatometer_rating`, `lifeime_gross`, `year`, `imbdRating`, and `numVotes`.
+
+
+```{r HosmerLemeshow}
+library("ResourceSelection") 
+dramaHoslem = hoslem.test(movieclean$y, fitted(dramaglm)) # Hosmer and Lemeshow test, a chi-squared test
+dramaHoslem
+```
+
+The p-value of `r dramaHoslem$p.value` is relatively high. This indicates the model is not really a good fit, despite all the coefficients are significant.
+
+# comedy indicator variable into y variables
+```{r}
+movieclean$y = movie_red[,11]
+movieclean$y <- as.factor(movieclean$y)
+str(movieclean)
+```
+
+```{r}
+res.bestglm <-
+  bestglm(Xy = movieclean,
+          family = binomial(link = "logit"),
+          IC = "AIC",
+          method = "exhaustive")
+
+res.bestglm$BestModels
+comedyglm <- res.bestglm$BestModel
+summary(comedyglm)
+```
+The best model has AIC 9623.153 with all variables exxcept `numVotes`.
+
+```{r HosmerLemeshow}
+comedyHoslem = hoslem.test(movieclean$y, fitted(comedyglm))
+comedyHoslem
+```
+
+The p-value of `r comedyHoslem$p.value` is relatively high. This indicates the model is not really a good fit, despite all the coefficients are significant.
+
+# romance indicator variable into y variables
+```{r}
+movieclean$y = movie_red[,12]
+movieclean$y <- as.factor(movieclean$y)
+str(movieclean)
+```
+
+```{r}
+res.bestglm <-
+  bestglm(Xy = movieclean,
+          family = binomial(link = "logit"),
+          IC = "AIC",
+          method = "exhaustive")
+
+res.bestglm$BestModels
+romanceglm <- res.bestglm$BestModel
+summary(romanceglm)
+```
+The best model has AIC 7270.020 with all variables, `content_rating`, `runtime`, `tomatometer_rating`, `lifeime_gross`, `year`, `imbdRating`, and `numVotes`.
+
+```{r HosmerLemeshow}
+romanceHoslem = hoslem.test(movieclean$y, fitted(romanceglm))
+romanceHoslem
+```
+
+The p-value of `r romanceHoslem$p.value` is relatively high. This indicates the model is not really a good fit, despite all the coefficients are significant.
+

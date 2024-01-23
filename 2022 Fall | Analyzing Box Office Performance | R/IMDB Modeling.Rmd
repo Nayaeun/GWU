@@ -1,0 +1,118 @@
+---
+title: "Final- IMDB modeling"
+author: "Tara"
+date: "2022-11-25"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## R Markdown
+
+
+```{r include=FALSE}
+library(dplyr)
+library(tidyr)
+library(ggplot2)
+library(stringr)
+```
+
+
+```{r}
+movie <- read.csv("movies.csv")
+```
+
+## Getting rid of the unnecessary columns
+```{r}
+movie_red <-
+  movie %>%
+  select(X, movie_title, content_rating, genres.x, runtime, tomatometer_status, tomatometer_rating, tomatometer_count, lifetime_gross, year, averageRating, numVotes) %>%
+  rename(genre = genres.x, imdbRating = averageRating)
+
+str(movie_red)
+```
+
+## Renaming genres to have generic names
+```{r}
+movie_red <-
+  movie_red %>%
+  mutate(genre = case_when(
+    str_detect(genre, "Comedy") ~ "Comedy",
+    str_detect(genre, "Horror")  ~ "Horror",
+    str_detect(genre, "Action") ~ "Action",
+    str_detect(genre, "Drama")  ~ "Drama",
+    str_detect(genre, "Science Fiction") ~ "Science Fiction",
+    str_detect(genre, "Art House")  ~ "Art House",
+    str_detect(genre, "Documentary") ~ "Documentary",
+    TRUE ~ genre
+    )
+  )
+
+str(movie_red)
+
+```
+
+## Filtering down to only most common genres
+```{r}
+
+
+new_mov <- movie_red%>%filter(str_detect(genre,"Comedy|Action|Horror|Drama|Science Fiction|Art House|Documentary"))
+
+str(new_mov)
+
+```
+
+## Creating factor variables
+```{r}
+
+new_mov$tomatometer_status <- as.factor(new_mov$tomatometer_status)
+new_mov$content_rating <- as.factor(new_mov$content_rating)
+new_mov$genre <- as.factor(new_mov$genre)
+
+str(new_mov)
+```
+
+## Feature Selection 
+```{r}
+
+library("leaps")
+reg.best10 <- regsubsets(imdbRating~runtime+tomatometer_status+tomatometer_rating+tomatometer_count+lifetime_gross+year+numVotes, data = new_mov, nvmax = 8, nbest = 2, method = "exhaustive")  # 
+plot(reg.best10, scale = "adjr2", main = "Adjusted R^2")
+plot(reg.best10, scale = "bic", main = "BIC")
+plot(reg.best10, scale = "Cp", main = "Cp")
+summary(reg.best10)
+```
+## Five Models based on feature selection & ANOVA
+
+
+```{r results='markup'}
+#top 4 numerical variables
+fit1<- lm(imdbRating~runtime+tomatometer_count+year+tomatometer_status, data=new_mov)
+summary(fit1)
+
+#top 5 numerical variables
+fit2<- lm(imdbRating~runtime+tomatometer_count+year+tomatometer_status+numVotes, data=new_mov)
+summary(fit2)
+
+
+#adding content rating
+fit3<-lm(imdbRating~runtime+tomatometer_count+year+tomatometer_status+numVotes+content_rating, data=new_mov)
+summary(fit3)
+
+#adding genre
+fit4<-lm(imdbRating~runtime+tomatometer_count+year+tomatometer_status+numVotes+genre, data=new_mov)
+summary(fit4)
+
+#adding genre and content rating
+fit5<-lm(imdbRating~runtime+tomatometer_count+year+tomatometer_status+numVotes+genre+content_rating, data=new_mov)
+summary(fit5)
+
+anova(fit1, fit2, fit3, fit4, fit5)
+
+```
+
+
+Out of the 5 models, based on ANOVA test, the 2nd and 4th model are the best with the lowest p-value. When looking at the $R^2$ values, model 4 is the best at .369. Model 5 is slightly better at .37, but the p-value isn't as low, making model 4 the best out of the 5 models. 
+

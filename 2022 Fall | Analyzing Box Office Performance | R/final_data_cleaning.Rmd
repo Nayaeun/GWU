@@ -1,0 +1,90 @@
+---
+title: "Final data cleaning"
+author: "C. Krall"
+date: '2022-11-23'
+output: html_document
+---
+
+```{r include=FALSE}
+library(dplyr)
+library(tidyr)
+library(ggplot2)
+library(stringr)
+```
+
+
+```{r}
+movie <- read.csv("movies.csv")
+```
+
+## Getting rid of the unnecessary columns
+```{r}
+movie_red <-
+  movie %>%
+  select(X, movie_title, content_rating, genres.x, runtime, tomatometer_status, tomatometer_rating, tomatometer_count, lifetime_gross, year, averageRating, numVotes) %>%
+  rename(genre = genres.x, imbdRating = averageRating)
+```
+
+
+## Adding indicator variables for Genre
+
+The first thing we need to do is find which genres are the most common. I created indicator variables for the top genres and summarizes their count
+```{r}
+movie_red <-
+  movie_red %>%
+  mutate(comedy = ifelse(str_detect(genre, "Comedy"), 1,0),
+         horror = ifelse(str_detect(genre, "Horror"), 1,0),
+         action = ifelse(str_detect(genre, "Action"), 1,0),
+         drama = ifelse(str_detect(genre, "Drama"), 1,0),
+         scifi = ifelse(str_detect(genre, "Science Fiction"), 1,0),
+         arthouse = ifelse(str_detect(genre, "Art House"), 1,0),
+         documentary = ifelse(str_detect(genre, "Documentary"), 1,0))
+
+movie_red %>%
+  count(comedy)
+movie_red %>%
+  count(horror)
+movie_red %>%
+  count(action)
+movie_red %>%
+  count(drama)
+movie_red %>%
+  count(scifi)
+movie_red %>%
+  count(arthouse)
+movie_red %>%
+  count(documentary)
+```
+drama comedy action
+
+Based on the counts above, the biggest genre categories are drama, comedy, and action, so we will attempt to predict these genres.
+
+## Making Indicators for Tomatoer Status
+```{r}
+movie_red <-
+  movie_red %>%
+  mutate(rotten = ifelse(str_detect(tomatometer_status, "Rotten"), 1, 0),
+         fresh = ifelse(str_detect(tomatometer_status, "^Fresh"), 1, 0),
+         cert_fresh = ifelse(str_detect(tomatometer_status, "Certified"), 1, 0),)
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

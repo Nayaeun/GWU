@@ -1,0 +1,74 @@
+---
+title: "Model Fitting"
+author: "C. Krall"
+date: '2022-10-21'
+output: html_document
+---
+
+```{r}
+library(dplyr)
+```
+
+
+```{r}
+movie.red$runtime <- as.numeric(movie.red$runtime)
+
+movie_num <-
+  movie.red %>%
+  select(-1, -2)
+
+movie_num <- na.omit(movie_num)
+```
+
+
+
+```{r}
+corm <- cor(movie_num)
+corrplot::corrplot(corm)
+```
+
+**Initial Model**
+Based on the correlation matrix of the numerical variables, the first feature we chose to run a regression on was imdbCount. After running this model, we got an R^2 value of 0.3771, which is not bad, but could certainly be improved upon. Both the intercept term and the coefficient for IMDb count are highly significant. As number of IMDb ratings increase by 1, the domestic lifetime gross increases by 219USD.
+
+
+```{r}
+lm1 <- lm(dlg~imdbCount, data = movie_num)
+summary(lm1)
+```
+
+In order to see if we  could improve the R^2 value, we added the explanatory variable with the next highest correlation with domestic lifetime groos, which is Rotten Tomatos review count. This model increases he R^2 value to 0.4372, which for non-scientific data is fairly decent. Both coefficients are highly significant in the model. When running a one way ANOVA for this model andour original model, we get an F-stat of 838.3 (p value approx 0), which means model 2 is performing much better than the reduced model. 
+
+```{r}
+lm2 <- lm(dlg~imdbCount+rtCount, data = movie_num)
+summary(lm2)
+```
+
+Following the same logic as with model two, we added runtime as a third explanatory variable. This coefficient is not significant in the model and has no impact on the R^2 value. Running a one way ANOVA confirms that model 3 does not perform better than model 2 (p value=0.171), so Model 2 is our best model using only numerical variables.
+
+```{r}
+lm3 <- lm(dlg~imdbCount+rtCount+runtime, data = movie_num)
+summary(lm3)
+```
+
+```{r}
+anova(lm3, lm2)
+anova(lm2, lm1)
+```
+
+**Content Rating**
+```{r}
+lm4 <- lm(dlg~imdbCount+rtCount+contRating, data = movie.red)
+summary(lm4)
+```
+
+Finally, we fit a model using content rating as an additional predictor. The R^2 value is 0.468, which is an improvement on model 2.
+
+
+
+
+
+
+
+
+
+

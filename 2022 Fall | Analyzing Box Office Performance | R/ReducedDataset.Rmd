@@ -1,0 +1,54 @@
+---
+title: "Reduced Dataset"
+author: "Arjun Bigly"
+date: "`r Sys.Date()`"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Reduced Dataset
+
+Importing the existing consolidated dataset.
+```{r}
+filepath = "movies.csv"
+movie <- read.csv(filepath)
+head(movie)
+```
+## Subsetting
+
+Listing all columns in the dataset.
+```{r}
+colnames(movie)
+```
+
+Columns we are interested in:  
+_format : original col name : new col name - description_
+
+1. __primaryTitle__ : __title__ - The title of  the movie. _(source: IMDB)_
+2. __content_rating__ : __contRating__- The category based on the movie suitability for audience. _(source: Rotten Tomatoes)_
+3. __startYear__ : __year__ - The year of movie release. _(source: IMDB)_
+4. __runtimeMinutes__ : __runtime__ - The movie run time in minutes. _(source: IMDB)_
+5. __averageRating__ : __imdbRating__-  The IMDB rating, average of user votes. _(source: IMDB)_
+6. __numVotes__ : __imdbCount__ - The number of votes that went into the IMDB rating. _(source: IMDB)_
+7. __tomatometer_rating__ : __rtRating__ - The percentage of positive critic reviews. _(source: Rotten Tomatoes)_
+8. __tomatometer_count__ : __rtCount__- The number of critic ratings counted for tomatometer rating. _(source: Rotten Tomatoes)_
+9. __lifetime_gross__ : __dlg__-  The domestic lifetime gross of the movie in USD (not accounting inflation). _(source: Box Office Mojo)_
+
+
+```{r}
+vars <- c("primaryTitle","content_rating","startYear","runtimeMinutes","averageRating","numVotes","tomatometer_rating","tomatometer_count","lifetime_gross") #list of org col names
+nvars <- c("title","contRating","year","runtime","imdbRating","imdbCount","rtRating","rtCount","dlg") #list of new col names
+
+movie.red <- movie[vars] #creating new df with only cols in vars
+colnames(movie.red) <- nvars #renaming using nvars
+
+head(movie.red)
+```
+```{r}
+#exporting to csv
+write.csv(movie.red,"movie_reduced.csv")
+```
+
