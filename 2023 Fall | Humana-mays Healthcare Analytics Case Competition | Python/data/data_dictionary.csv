@@ -1,0 +1,50 @@
+﻿field,definition,table
+id,Person Identifier - unique for a member,target_df
+therapy_start_date,The date of the member's first fill of Tagrisso.,target_df
+therapy_end_date,The date the member runs out of their supply of tagrisso. OR six months after therapy_start_date. Only available in the training data,target_df
+tgt_ade_dc_ind,An indicator for whether this person meets the target criteria of reporting an ADE and discontinuing therapy before 6 months. Only availble in training data,target_df
+race_cd,a numeric indicator for race,target_df
+est_age,The member's estimated age,target_df
+sex_cd,Indicates the member's sex,target_df
+cms_disabled_ind,indicates if the member is classified as disabled by CMS,target_df
+cms_low_income_ind,indicates if the member recieves low income subsidies from CMS,target_df
+therapy_id,"therapy identifier - concatenation of sdr_person_id, drug name, and therapy number",all
+document_key,unique identifier for a prescription claim document,rxclms
+ndc_id,National Drug Code Identifier: a national/FDA identifier for a specific drug. Lookup available from several online databases.,rxclms
+service_date,Date of a prescription fill,rxclms
+process_date,Date that this claim was processed,"rxclms, medclms"
+pay_day_supply_cnt,The number of days supply of a drug,rxclms
+rx_cost,The cost of the prescription,rxclms
+tot_drug_cost_accum_amt,The cumulative cost amount for a member year-to-date,rxclms
+reversal_ind,Indicates whether this claim is a reversal,"rxclms, medclms"
+mail_order_ind,Indicates whether this prescription was filled with the mail-order pharmacy,rxclms
+generic_ind,indicates whether this drug is branded or generic,rxclms
+maint_ind,indicates whether this drug is a maintenance or nonmaintenence drug,rxclms
+gpi_drug_class_desc,Generic Product Identifier drug class description,rxclms
+gpi_drug_group_desc,Generic Product Identifier drug group description,rxclms
+hum_drug_class_desc,Humana Drug Class Description,rxclms
+strength_meas,the unit of measure for the drug filled in this claim,rxclms
+metric_strength,The metric strength of the drug filled in this claim,rxclms
+specialty_ind,Idicates whether this claim is for a specialty drug,rxclms
+clm_type,Indicates if this claim is an rx claim or a med claim,"rxclms, medclms"
+ddi_ind,Indicates if this claim is for a drug with a know interaction with Tagrisso,rxclms
+anticoag_ind,Indicates if this claim is for an anticoagulant,rxclms
+diarrhea_treat_ind,indicates if this claim is for a drug used to treat diarrhea,rxclms
+nausea_treat_ind,indicates if this claim is for a drug used to treat nausea,rxclms
+seizure_treat_ind,indicates if this claim is for a drug used to treat seizures,rxclms
+medclm_key,indicator key for a medical claim,medclms
+clm_unique_key,a unique indicator key for a medical claim,medclms
+primary_diag_cd,The primary diagnosis code for this claim in the ICD-10 format. Lookup available online. ,medclms
+visit_date,The date of the medical visit,medclms
+diag_cd#,non-primary diagnosis codes for a medical claim. Each claim has space for up to 8 non-primary diagnosis codes in the ICD-10 format. Lookup available online. ,medclms
+pot,place of treatment for this claim,medclms
+util_cat,Combination of admit_type and pot for use in creating utilization categories,medclms
+heids_pot,Uses Healthcare Effectiveness Data and Information Set Place of Treatment (HEDIS) ValueSets to label various place of treatment descriptions,medclms
+ade_diagnosis,Indicates if the diagnosis codes in this claim report an adverse drug event (ADE),medclms
+seizure_diagnosis,Indicates if the diagnosis codes in this claim report seizures,medclms
+pain_diagnosis,Indicates if the diagnosis codes in this claim report pain,medclms
+fatigue_diagnosis,Indicates if the diagnosis codes in this claim report fatigue,medclms
+nausea_diagnosis,Indicates if the diagnosis codes in this claim report nausea,medclms
+hyperglycemia_diagnosis,Indicates if the diagnosis codes in this claim report hyperglycemia,medclms
+constipation_diagnosis,Indicates if the diagnosis codes in this claim report constipation,medclms
+diarrhea_diagnosis,Indicates if the diagnosis codes in this claim report diarrhea,medclms
