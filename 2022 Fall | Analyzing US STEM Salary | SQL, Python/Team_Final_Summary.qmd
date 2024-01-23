@@ -1,0 +1,1101 @@
+---
+title: "Data Science and Stem Salaries - How to land in a high Paying jobs"
+author: Brooklyn Chen, Manojkumar Yerraguntla, Nayaeun Kwon
+format:
+    html:    
+        code-fold: true
+        number-sections: true
+        toc: true
+        toc-depth: 6
+        toc-float: true
+        toc-location: left
+        page-layout: full
+execute: 
+  echo: false
+  result: hide
+  warning: false
+---
+# Introduction
+
+Information technology is unquestionably one of the most rapidly increasing fields. According to the US Bureau of Labor Statistics, the IT industry is predicted to rise by 13% between 2020 and 2030. This is quicker than the average for all jobs, with computer and IT occupations earning more than twice as much as other occupations. A career in technology offers various advantages, one of which is a high compensation.
+
+A young professional or recent graduate has various fascinating possibilities in the technology area to select from, such as Data Science courses, AI & ML courses, and so on. A profession in technology may be found in a variety of settings, including fast-paced startups, creative technological businesses, and tiny IT departments.
+
+Our initiative is all about assisting recent graduates who are eager to enter the IT business by placing them in the highest-paying professions available and providing an approximate estimate of their wages depending on the criteria.
+
+# Description of the Data
+
+This dataset is collected from Kaggle in order to explore Data Science and Stem Salaries.
+
+Our original dataset has approximately 62,000 observations with 29 features.
+
+There are some duplicates, null values and outliers in our dataset. After removing the duplicates, null values and outliers in our dataset we are left with 35973 observations.
+
+We have considered the below mentioned features in our final dataset:
+
+__timestamp__: When the data was recorded<br>
+__company__: Company name into which employee got selected<br>
+__title__: Jop title of the employee<br>
+__yearlysalary__: Amount of salary earned by the employee<br>
+__location__: Job location <br>
+__yearsofexperience__: Year of Experience<br>
+__yearsatcompany__: Years of experience at same company<br>
+__gender__: Male or Female <br>
+
+```{python}
+#| output: false
+#| Importing the Libraries
+import numpy as np
+import pandas as pd
+import matplotlib.pyplot as plt
+import seaborn as sns
+import plotly.express as px
+import scipy.stats as stats
+import sklearn
+import researchpy as rp
+from scipy.stats import pearsonr
+import pandas_profiling as pp
+
+pd.set_option('display.max_rows', None)
+pd.set_option('display.max_columns', None)
+pd.set_option('display.width', 1000)
+pd.set_option('display.colheader_justify', 'center')
+pd.set_option('display.precision', 3)
+```
+
+```{python}
+#| output: false
+
+# Important the Salary DataSet from .CSV file
+old_df=pd.read_csv('Levels_Fyi_Salary_Data.csv')
+
+# Explore Dataset
+old_dfprofile = pp.ProfileReport(old_df)
+
+# Creating a new dataframe with selected Features
+df = old_df[['timestamp','company','title','yearsofexperience','yearsatcompany', 'gender', 'location']]
+
+# Renaming the Totalyearlycompensation variable name into yearlysalary
+df['yearlysalary'] = old_df['totalyearlycompensation']
+
+# Coverting timestamp feature from MM-DD-YYYY HH:MM:SS format to YYYY format
+df['timestamp'] = pd.to_datetime(df['timestamp']).dt.strftime('%Y')
+```
+
+First of all, let's look at whether the dependent variable, salary, has normality shape.
+```{python}
+# salary histogram for checking normality
+sns.distplot(df.yearlysalary, fit = stats.norm)
+plt.show()
+```
+
+Our salary data has highly right-skewed distribution. We are going to remove null values and outliers.
+
+```{python}
+#| output: false
+# Removing a row which has irrelavent value for feature Gender='Title: Senior Software Engineer'
+df=df.drop(labels=11010,axis=0)
+
+# checking for number of duplicates
+df.duplicated().sum()
+
+# Removing the duplicates from the dataframe
+df.drop_duplicates(keep=False,inplace=True)
+
+# Checking the number of null values 
+df.isnull().sum()
+
+# Removing the null values
+df=df.dropna()
+
+# Removing the Outliers on the basis of yearlysalary
+df1 = df.copy()
+print ("Shape Of The Before removing yearlysalary Outliers: ",df.shape)
+n=1.5
+IQR_1 = np.percentile(df1['yearlysalary'],75) - np.percentile(df1['yearlysalary'],25)
+#outlier = Q3 + n*IQR 8
+df1=df1[df1['yearlysalary'] < np.percentile(df1['yearlysalary'],75)+n*IQR_1]
+#outlier = Q1 - n*IQR 
+df1=df1[df1['yearlysalary'] > np.percentile(df1['yearlysalary'],25)-n*IQR_1]
+print ("Shape Of The After removing yearlysalary Outliers: ",df1.shape)
+
+# Removing the Outliers on the basis of yearsatcompany
+df2 = df1.copy()
+print ("Shape Of The Before removing yearsatcompany at Outliers: ",df1.shape)
+n=1.5
+IQR_2 = np.percentile(df2['yearsatcompany'],75) - np.percentile(df2['yearsatcompany'],25)
+#outlier = Q3 + n*IQR 
+df2=df2[df2['yearsatcompany'] < np.percentile(df2['yearsatcompany'],75)+n*IQR_2]
+#outlier = Q1 - n*IQR 
+df2=df2[df2['yearsatcompany'] > np.percentile(df2['yearsatcompany'],25)-n*IQR_2]
+print ("Shape Of The After removing yearsatcompany Outliers: ",df2.shape)
+
+# Removing the Outliers on the basis of yearsofexperience
+df3 = df2.copy()
+print ("Shape Of The Before removing yearsofexperience Outliers: ",df2.shape)
+n=1.5
+IQR_3 = np.percentile(df3['yearsofexperience'],75) - np.percentile(df3['yearsofexperience'],25)
+#outlier = Q3 + n*IQR 
+df3=df3[df3['yearsofexperience'] < np.percentile(df3['yearsofexperience'],75)+n*IQR_3]
+#outlier = Q1 - n*IQR 
+df3=df3[df3['yearsofexperience'] > np.percentile(df3['yearsofexperience'],25)-n*IQR_3]
+print ("Shape Of The After removing yearsofexperience Outliers: ",df3.shape)
+```
+
+```{python}
+#| output: false
+Reference_dataframe=df3
+# Observing the first five rows of the dataframe after removing duplicates, null values, and Outliers
+print(df3.head())
+
+# Descriptive Statistics Summary of the dataframe after removing duplicates, null values, and Outliers
+df3.describe()
+```
+
+Below is the histogram for salary data after removing NA Values, Duplicates and Outliers.
+```{python}
+# salary histogram for chekciing normality
+sns.distplot(df3.yearlysalary, fit = stats.norm)
+plt.show()
+```
+
+Now, the distribution is closer to normalization and we are able to analyze salary data.
+
+# Exploratory Data Analysis
+
+## Which job position has highest earning? Over time, salary by job title is changed?
+
+In the dataset, there are total 15 unique titles:
+```{python}
+print (pd.unique(df3.title))
+# print (df3['title'].nunique())
+```
+
+
+```{python}
+# Piechart for each job title and their repsective percentages
+print (df3['title'].value_counts())
+fig = px.pie(df3, names = 'title', title = 'Title')
+fig.show()
+```
+
+
+```{python}
+#Average salary by title
+avgsalary = df3.groupby('title').mean()['yearlysalary'].reset_index()
+print (avgsalary)
+
+avgsalary.plot(kind = 'bar', x = 'title', y = 'yearlysalary', title = 'Average Salary by Job Title', figsize=(10,3))
+plt.show()
+
+
+clarity_ranking = ["Product Manager", "Software Engineer", "Software Engineering Manager", "Data Scientist", "Solution Architect", "Technical Program Manager", "Human Resources", "Product Designer", "Marketing", "Business Analyst", "Hardware Engineer", "Sales", "Recruiter", "Mechanical Engineer", "Management Consultant"]
+
+titleboxplot = sns.boxplot(y="title", x="yearlysalary", color="b", order=clarity_ranking, data=df3, showfliers = False, palette="Blues", orient="h")
+titleboxplot.axes.set_title("Salary Box Plot by Job Title", fontsize=16)
+titleboxplot.set_xlabel("Job Title", fontsize=14)
+titleboxplot.set_ylabel("Yearly Salary", fontsize=14)
+plt.setp(titleboxplot.get_xticklabels(), rotation=90)
+
+plt.show()
+```
+
+Our dataset have the most Software Engineer about 70% and Software engineering manager has highest earning.
+
+Let's look at top 5 earner by each year.
+
+```{python}
+# 2018 top 5 highest earner
+df2018 = df3[df3.timestamp=='2018']
+highearn1 = df2018.groupby(['title','yearsofexperience','company', 'location']).max()['yearlysalary'].reset_index()
+highearn1 = highearn1.nlargest(5, ['yearlysalary'])
+highearn1
+```
+
+In 2018, highest job positions are Software Engineer, Data Scientist, Software Engineering Manager. Apparent feature is the salary of software engineer who has 14 years work experience in WA is almost same with or a little bit lower than whom has less work experience in CA or NY.
+
+```{python}
+# 2019 top 10 highest earner
+
+df2019 = df3[df3.timestamp=='2019']
+highearn2 = df2019.groupby(['title','yearsofexperience','company', 'location']).max()['yearlysalary'].reset_index()
+highearn2 = highearn2.nlargest(5, ['yearlysalary'])
+
+highearn2
+```
+
+In 2019, highest job positions are Product Manager, Software Engineer, Software Engineering Manager. From 2019, overall salary is a little bit higher than 2018. Work experience is also differ from 5 to 10 years. This time, software engineer who is in Switzerland is ranked.
+
+```{python}
+# 2020 top 10 highest earner
+
+df2020 = df3[df3.timestamp=='2020']
+highearn3 = df2020.groupby(['title','yearsofexperience','company', 'location']).max()['yearlysalary'].reset_index()
+highearn3 = highearn3.nlargest(5, ['yearlysalary'])
+
+highearn3
+```
+
+In 2020, highest job positions are Software Engineer, Software Engineering Manager, Hardware Engineer, Product Manager, Data Scientist. This year, work experience year is higher than previous years and all location is in CA.
+
+```{python}
+# 2021 top 10 highest earner
+
+df2021 = df3[df3.timestamp=='2021']
+highearn4 = df2021.groupby(['title','yearsofexperience','company', 'location']).max()['yearlysalary'].reset_index()
+highearn4 = highearn4.nlargest(5, ['yearlysalary'])
+
+highearn4
+```
+
+In 2021, highest job positions are Software Engineer, Software Engineering Manager, Data Scientist, Product Manager. This year, Software Engineer who is in WA, US and Canada  is ranked. 
+
+From 2018 to 2021, job position such as Software Engineer, Software Engineering Manager, Data Scientist, Product Manager, Hardware Engineer made highly earning. But, we can conclude that job title is not only factor to earn more money. 
+
+### ANOVA for Job Position by Each Year
+We implemented an ANOVA to investigate whether the average salary for each job position changes over year.
+
+First, ANOVA for Software Engineer.
+
+_H₀: Year by year salary means of software engineer are equal_<br>
+_H₁: Year by year salary means of software engineer are not equal_<br>
+<br>
+```{python}
+# α = 0.05
+
+SE = df3[df3['title'] == 'Software Engineer']
+
+SE_ANOVA = [['Between Groups', '', '', '', '', '', ''], ['Within Groups', '', '', '', '', '', ''], ['Total', '', '', '', '', '', '']] 
+SE_anova_table = pd.DataFrame(SE_ANOVA, columns = ['Source of Variation', 'SS', 'df', 'MS', 'F', 'P-value', 'F crit']) 
+SE_anova_table.set_index('Source of Variation', inplace = True)
+
+# calculate SSTR and update anova table
+x_bar = SE['yearlysalary'].mean()
+SSTR = SE.groupby('timestamp').count() * (SE.groupby('timestamp').mean() - x_bar)**2       
+SE_anova_table['SS']['Between Groups'] = SSTR['yearlysalary'].sum()
+
+# calculate SSE and update anova table
+SSE = (SE.groupby('timestamp').count() - 1) * SE.groupby('timestamp').std()**2
+SE_anova_table['SS']['Within Groups'] = SSE['yearlysalary'].sum()
+
+# calculate SSTR and update anova table
+SSTR = SSTR['yearlysalary'].sum() + SSE['yearlysalary'].sum()
+SE_anova_table['SS']['Total'] = SSTR
+
+# update degree of freedom
+SE_anova_table['df']['Between Groups'] = SE['timestamp'].nunique() - 1
+SE_anova_table['df']['Within Groups'] = SE.shape[0] - SE['timestamp'].nunique()
+SE_anova_table['df']['Total'] = SE.shape[0] - 1
+
+# calculate MS
+SE_anova_table['MS'] = SE_anova_table['SS'] / SE_anova_table['df']
+
+# calculate F 
+F = SE_anova_table['MS']['Between Groups'] / SE_anova_table['MS']['Within Groups']
+SE_anova_table['F']['Between Groups'] = F
+
+# p-value
+SE_anova_table['P-value']['Between Groups'] = 1 - stats.f.cdf(F, SE_anova_table['df']['Between Groups'], SE_anova_table['df']['Within Groups'])
+
+# F critical 
+alpha = 0.05
+# possible types "right-tailed, left-tailed, two-tailed"
+tail_hypothesis_type = "two-tailed"
+if tail_hypothesis_type == "two-tailed":
+    alpha /= 2
+SE_anova_table['F crit']['Between Groups'] = stats.f.ppf(1-alpha, SE_anova_table['df']['Between Groups'], SE_anova_table['df']['Within Groups'])
+
+# Final ANOVA Table
+SE_anova_table
+```
+
+```{python}
+print("The p-value approach to hypothesis testing in the decision rule")
+conclusion = "Failed to reject the null hypothesis."
+if SE_anova_table['P-value']['Between Groups'] <= alpha:
+    conclusion = "Null Hypothesis is rejected."
+print("F-score is:", SE_anova_table['F']['Between Groups'], " and p value is:", SE_anova_table['P-value']['Between Groups'])    
+print(conclusion)
+
+# Reject H0
+
+```
+
+As a result, year by year salary means of Software Engineer are not equal.
+
+Second, ANOVA for Software Engineering Manager.
+
+_H₀: Year by year salary means of Software Engineering Manager are equal_<br>
+_H₁: Year by year salary means of Software Engineering Manager are not equal_<br>
+
+```{python}
+
+# α = 0.05
+
+# Data Scientist, Product Manager, Hardware Engineer
+SEM = df3[df3['title'] == 'Software Engineering Manager']
+
+SEM_ANOVA = [['Between Groups', '', '', '', '', '', ''], ['Within Groups', '', '', '', '', '', ''], ['Total', '', '', '', '', '', '']] 
+SEM_anova_table = pd.DataFrame(SEM_ANOVA, columns = ['Source of Variation', 'SS', 'df', 'MS', 'F', 'P-value', 'F crit']) 
+SEM_anova_table.set_index('Source of Variation', inplace = True)
+
+# calculate SSTR and update anova table
+x_bar = SEM['yearlysalary'].mean()
+SSTR = SEM.groupby('timestamp').count() * (SEM.groupby('timestamp').mean() - x_bar)**2       
+SEM_anova_table['SS']['Between Groups'] = SSTR['yearlysalary'].sum()
+
+# calculate SSE and update anova table
+SSE = (SEM.groupby('timestamp').count() - 1) * SEM.groupby('timestamp').std()**2
+SEM_anova_table['SS']['Within Groups'] = SSE['yearlysalary'].sum()
+
+# calculate SSTR and update anova table
+SSTR = SSTR['yearlysalary'].sum() + SSE['yearlysalary'].sum()
+SEM_anova_table['SS']['Total'] = SSTR
+
+# update degree of freedom
+SEM_anova_table['df']['Between Groups'] = SEM['timestamp'].nunique() - 1
+SEM_anova_table['df']['Within Groups'] = SEM.shape[0] - SEM['timestamp'].nunique()
+SEM_anova_table['df']['Total'] = SEM.shape[0] - 1
+
+# calculate MS
+SEM_anova_table['MS'] = SEM_anova_table['SS'] / SEM_anova_table['df']
+
+# calculate F 
+F = SEM_anova_table['MS']['Between Groups'] / SEM_anova_table['MS']['Within Groups']
+SEM_anova_table['F']['Between Groups'] = F
+
+# p-value
+SEM_anova_table['P-value']['Between Groups'] = 1 - stats.f.cdf(F, SEM_anova_table['df']['Between Groups'], SEM_anova_table['df']['Within Groups'])
+
+# F critical 
+alpha = 0.05
+# possible types "right-tailed, left-tailed, two-tailed"
+tail_hypothesis_type = "two-tailed"
+if tail_hypothesis_type == "two-tailed":
+    alpha /= 2
+SEM_anova_table['F crit']['Between Groups'] = stats.f.ppf(1-alpha, SEM_anova_table['df']['Between Groups'], SEM_anova_table['df']['Within Groups'])
+
+# Final ANOVA Table
+SEM_anova_table
+```
+
+```{python}
+print("The p-value approach to hypothesis testing in the decision rule")
+conclusion = "Failed to reject the null hypothesis."
+if SEM_anova_table['P-value']['Between Groups'] <= alpha:
+    conclusion = "Null Hypothesis is rejected."
+print("F-score is:", SEM_anova_table['F']['Between Groups'], " and p value is:", SEM_anova_table['P-value']['Between Groups'])    
+print(conclusion)
+
+# Reject H0
+
+```
+
+As a result, year by year salary means of Software Engineering Manager are not equal.
+
+Third, ANOVA for Data Scientist.
+
+_H₀: Year by year salary means of Data Scientist are equal_<br>
+_H₁: Year by year salary means of Data Scientist are not equal_<br>
+
+```{python}
+# α = 0.05
+
+# Product Manager, Hardware Engineer
+DS = df3[df3['title'] == 'Data Scientist']
+
+DS_ANOVA = [['Between Groups', '', '', '', '', '', ''], ['Within Groups', '', '', '', '', '', ''], ['Total', '', '', '', '', '', '']] 
+DS_anova_table = pd.DataFrame(DS_ANOVA, columns = ['Source of Variation', 'SS', 'df', 'MS', 'F', 'P-value', 'F crit']) 
+DS_anova_table.set_index('Source of Variation', inplace = True)
+
+# calculate SSTR and update anova table
+x_bar = DS['yearlysalary'].mean()
+SSTR = DS.groupby('timestamp').count() * (DS.groupby('timestamp').mean() - x_bar)**2       
+DS_anova_table['SS']['Between Groups'] = SSTR['yearlysalary'].sum()
+
+# calculate SSE and update anova table
+SSE = (DS.groupby('timestamp').count() - 1) * DS.groupby('timestamp').std()**2
+DS_anova_table['SS']['Within Groups'] = SSE['yearlysalary'].sum()
+
+# calculate SSTR and update anova table
+SSTR = SSTR['yearlysalary'].sum() + SSE['yearlysalary'].sum()
+DS_anova_table['SS']['Total'] = SSTR
+
+# update degree of freedom
+DS_anova_table['df']['Between Groups'] = DS['timestamp'].nunique() - 1
+DS_anova_table['df']['Within Groups'] = DS.shape[0] - DS['timestamp'].nunique()
+DS_anova_table['df']['Total'] = DS.shape[0] - 1
+
+# calculate MS
+DS_anova_table['MS'] = DS_anova_table['SS'] / DS_anova_table['df']
+
+# calculate F 
+F = DS_anova_table['MS']['Between Groups'] / DS_anova_table['MS']['Within Groups']
+DS_anova_table['F']['Between Groups'] = F
+
+# p-value
+DS_anova_table['P-value']['Between Groups'] = 1 - stats.f.cdf(F, DS_anova_table['df']['Between Groups'], DS_anova_table['df']['Within Groups'])
+
+# F critical 
+alpha = 0.05
+# possible types "right-tailed, left-tailed, two-tailed"
+tail_hypothesis_type = "two-tailed"
+if tail_hypothesis_type == "two-tailed":
+    alpha /= 2
+DS_anova_table['F crit']['Between Groups'] = stats.f.ppf(1-alpha, DS_anova_table['df']['Between Groups'], DS_anova_table['df']['Within Groups'])
+
+# Final ANOVA Table
+DS_anova_table
+```
+
+```{python}
+print("The p-value approach to hypothesis testing in the decision rule")
+conclusion = "Failed to reject the null hypothesis."
+if DS_anova_table['P-value']['Between Groups'] <= alpha:
+    conclusion = "Null Hypothesis is rejected."
+print("F-score is:", DS_anova_table['F']['Between Groups'], " and p value is:", DS_anova_table['P-value']['Between Groups'])    
+print(conclusion)
+
+# Reject H0
+
+```
+
+As a result, year by year salary means of Data Scientist are not equal.
+
+Fourth, ANOVA for Product Manager.
+
+_H₀: Year by year salary means of Product Manager are equal_ <br>
+_H₁: Year by year salary means of Product Manager are not equal_<br>
+
+```{python}
+
+# α = 0.05
+
+PM = df3[df3['title'] == 'Product Manager']
+
+PM_ANOVA = [['Between Groups', '', '', '', '', '', ''], ['Within Groups', '', '', '', '', '', ''], ['Total', '', '', '', '', '', '']] 
+PM_anova_table = pd.DataFrame(PM_ANOVA, columns = ['Source of Variation', 'SS', 'df', 'MS', 'F', 'P-value', 'F crit']) 
+PM_anova_table.set_index('Source of Variation', inplace = True)
+
+# calculate SSTR and update anova table
+x_bar = PM['yearlysalary'].mean()
+SSTR = PM.groupby('timestamp').count() * (PM.groupby('timestamp').mean() - x_bar)**2       
+PM_anova_table['SS']['Between Groups'] = SSTR['yearlysalary'].sum()
+
+# calculate SSE and update anova table
+SSE = (PM.groupby('timestamp').count() - 1) * PM.groupby('timestamp').std()**2
+PM_anova_table['SS']['Within Groups'] = SSE['yearlysalary'].sum()
+
+# calculate SSTR and update anova table
+SSTR = SSTR['yearlysalary'].sum() + SSE['yearlysalary'].sum()
+PM_anova_table['SS']['Total'] = SSTR
+
+# update degree of freedom
+PM_anova_table['df']['Between Groups'] = PM['timestamp'].nunique() - 1
+PM_anova_table['df']['Within Groups'] = PM.shape[0] - PM['timestamp'].nunique()
+PM_anova_table['df']['Total'] = PM.shape[0] - 1
+
+# calculate MS
+PM_anova_table['MS'] = PM_anova_table['SS'] / PM_anova_table['df']
+
+# calculate F 
+F = PM_anova_table['MS']['Between Groups'] / PM_anova_table['MS']['Within Groups']
+PM_anova_table['F']['Between Groups'] = F
+
+# p-value
+PM_anova_table['P-value']['Between Groups'] = 1 - stats.f.cdf(F, PM_anova_table['df']['Between Groups'], PM_anova_table['df']['Within Groups'])
+
+# F critical 
+alpha = 0.05
+# possible types "right-tailed, left-tailed, two-tailed"
+tail_hypothesis_type = "two-tailed"
+if tail_hypothesis_type == "two-tailed":
+    alpha /= 2
+PM_anova_table['F crit']['Between Groups'] = stats.f.ppf(1-alpha, PM_anova_table['df']['Between Groups'], PM_anova_table['df']['Within Groups'])
+
+# Final ANOVA Table
+PM_anova_table
+```
+
+```{python}
+print("The p-value approach to hypothesis testing in the decision rule")
+conclusion = "Failed to reject the null hypothesis."
+if PM_anova_table['P-value']['Between Groups'] <= alpha:
+    conclusion = "Null Hypothesis is rejected."
+print("F-score is:", PM_anova_table['F']['Between Groups'], " and p value is:", PM_anova_table['P-value']['Between Groups'])    
+print(conclusion)
+
+# Reject H0
+
+```
+
+As a reuslt, year by year salary means of Product Manager are not equal.
+
+Last, ANOVA for Hardware Engineer.
+
+_H₀: Year by year salary means of Hardware Engineer are equal_<br>
+_H₁: Year by year salary means of Hardware Engineer are not equal_<br>
+
+```{python}
+
+# α = 0.05
+
+HE = df3[df3['title'] == 'Hardware Engineer']
+
+HE_ANOVA = [['Between Groups', '', '', '', '', '', ''], ['Within Groups', '', '', '', '', '', ''], ['Total', '', '', '', '', '', '']] 
+HE_anova_table = pd.DataFrame(HE_ANOVA, columns = ['Source of Variation', 'SS', 'df', 'MS', 'F', 'P-value', 'F crit']) 
+HE_anova_table.set_index('Source of Variation', inplace = True)
+
+# calculate SSTR and update anova table
+x_bar = HE['yearlysalary'].mean()
+SSTR = HE.groupby('timestamp').count() * (HE.groupby('timestamp').mean() - x_bar)**2       
+HE_anova_table['SS']['Between Groups'] = SSTR['yearlysalary'].sum()
+
+# calculate SSE and update anova table
+SSE = (HE.groupby('timestamp').count() - 1) * HE.groupby('timestamp').std()**2
+HE_anova_table['SS']['Within Groups'] = SSE['yearlysalary'].sum()
+
+# calculate SSTR and update anova table
+SSTR = SSTR['yearlysalary'].sum() + SSE['yearlysalary'].sum()
+HE_anova_table['SS']['Total'] = SSTR
+
+# update degree of freedom
+HE_anova_table['df']['Between Groups'] = HE['timestamp'].nunique() - 1
+HE_anova_table['df']['Within Groups'] = HE.shape[0] - HE['timestamp'].nunique()
+HE_anova_table['df']['Total'] = HE.shape[0] - 1
+
+# calculate MS
+HE_anova_table['MS'] = HE_anova_table['SS'] / HE_anova_table['df']
+
+# calculate F 
+F = HE_anova_table['MS']['Between Groups'] / HE_anova_table['MS']['Within Groups']
+HE_anova_table['F']['Between Groups'] = F
+
+# p-value
+HE_anova_table['P-value']['Between Groups'] = 1 - stats.f.cdf(F, HE_anova_table['df']['Between Groups'], HE_anova_table['df']['Within Groups'])
+
+# F critical 
+alpha = 0.05
+# possible types "right-tailed, left-tailed, two-tailed"
+tail_hypothesis_type = "two-tailed"
+if tail_hypothesis_type == "two-tailed":
+    alpha /= 2
+HE_anova_table['F crit']['Between Groups'] = stats.f.ppf(1-alpha, HE_anova_table['df']['Between Groups'], HE_anova_table['df']['Within Groups'])
+
+# Final ANOVA Table
+HE_anova_table
+```
+```{python}
+print("The p-value approach to hypothesis testing in the decision rule")
+conclusion = "Failed to reject the null hypothesis."
+if HE_anova_table['P-value']['Between Groups'] <= alpha:
+    conclusion = "Null Hypothesis is rejected."
+print("F-score is:", HE_anova_table['F']['Between Groups'], " and p value is:", HE_anova_table['P-value']['Between Groups'])    
+print(conclusion)
+
+# Reject H0
+```
+
+As a result, year by year salary means of Hardware Engineer are not equal.
+
+According to ANOVA, the salary by title over time is statistically significant, which means salary over time per each job position is not equal.
+
+## How large is the wage disparity between gender?
+```{python}
+sns.boxplot(data=df3,x = 'gender', y = 'yearlysalary')
+plt.title("Salary by Gender")
+plt.ylim(0,500000,25000)
+plt.show()
+```
+
+According to box plot for gender, it looks there is apparent difference beween average salary for gender. But to make sure, let's look at the ANOVA for gender.
+
+_H₀: Salary by gender are equal_<br>
+_H₁: Salary by gender are not equal_<br>
+
+```{python}
+# α = 0.05
+
+gender_ANOVA = [['Between Groups', '', '', '', '', '', ''], ['Within Groups', '', '', '', '', '', ''], ['Total', '', '', '', '', '', '']] 
+gender_anova_table = pd.DataFrame(gender_ANOVA, columns = ['Source of Variation', 'SS', 'df', 'MS', 'F', 'P-value', 'F crit']) 
+gender_anova_table.set_index('Source of Variation', inplace = True)
+
+# calculate SSTR and update anova table
+x_bar = df3['yearlysalary'].mean()
+SSTR = df3.groupby('gender').count() * (df3.groupby('gender').mean() - x_bar)**2       
+gender_anova_table['SS']['Between Groups'] = SSTR['yearlysalary'].sum()
+
+# calculate SSE and update anova table
+SSE = (df3.groupby('gender').count() - 1) * df3.groupby('gender').std()**2
+gender_anova_table['SS']['Within Groups'] = SSE['yearlysalary'].sum()
+
+# calculate SSTR and update anova table
+SSTR = SSTR['yearlysalary'].sum() + SSE['yearlysalary'].sum()
+gender_anova_table['SS']['Total'] = SSTR
+
+# update degree of freedom
+gender_anova_table['df']['Between Groups'] = df3['gender'].nunique() - 1
+gender_anova_table['df']['Within Groups'] = df3.shape[0] - df3['timestamp'].nunique()
+gender_anova_table['df']['Total'] = df3.shape[0] - 1
+
+# calculate MS
+gender_anova_table['MS'] = gender_anova_table['SS'] / gender_anova_table['df']
+
+# calculate F 
+F = gender_anova_table['MS']['Between Groups'] / gender_anova_table['MS']['Within Groups']
+gender_anova_table['F']['Between Groups'] = F
+
+# p-value
+gender_anova_table['P-value']['Between Groups'] = 1 - stats.f.cdf(F, gender_anova_table['df']['Between Groups'], gender_anova_table['df']['Within Groups'])
+
+# F critical 
+alpha = 0.05
+# possible types "right-tailed, left-tailed, two-tailed"
+tail_hypothesis_type = "two-tailed"
+if tail_hypothesis_type == "two-tailed":
+    alpha /= 2
+gender_anova_table['F crit']['Between Groups'] = stats.f.ppf(1-alpha, gender_anova_table['df']['Between Groups'], gender_anova_table['df']['Within Groups'])
+
+# Final ANOVA Table
+gender_anova_table
+```
+
+```{python}
+print("The p-value approach to hypothesis testing in the decision rule")
+conclusion = "Failed to reject the null hypothesis."
+if gender_anova_table['P-value']['Between Groups'] <= alpha:
+    conclusion = "Null Hypothesis is rejected."
+print("F-score is:", gender_anova_table['F']['Between Groups'], " and p value is:", gender_anova_table['P-value']['Between Groups'])    
+print(conclusion)
+
+# Reject H0
+```                          
+
+As a result, the salary by gender are not equal which means that average salary by gender is statistically significant.
+
+## Is there a significant difference between the yearly salary in top 10 companies and the yearly salary in not-top-10 companies?
+
+Overall, there are 1435 different companies in this dataset. Based on the rank on Fortune 500 (2022), we divided the companies into two groups:<br>
+<br>
+* Top 10 companies:<br>
+Apple, Walmart Labs, Walmart, Amazon, CVS health, UnitedHealth Group, ExxonMobil, and McKesson<br>
+* Not-top-10 companies:<br>
+Yahoo, Netflix, Uber, Dell Technologies, Zillow, Airbnb, Cisco, JPMorgan Chase....
+
+
+### Distribution of Yearly Salary for Top 10 companies and Not-top-10 companies
+
+First, we divided the data in to two groups. Next, we add a new boolean column called "topcompany". If the company is in Top 10 companies shows 1, if not shows 0.
+```{python}
+top10 = df3[df3.company.isin(["Apple","apple","APPLE","Walmart Labs","Walmart","walmart","Amazon","amazon","AMAZON","CVS health","cvs health","CVS Health","UnitedHealth Group","ExxonMobil"
+"McKesson"])]
+
+not10 = df3[~df3.company.isin(["Apple","apple","APPLE","Walmart Labs","Walmart","walmart","Amazon","amazon","AMAZON","CVS health","cvs health","CVS Health","UnitedHealth Group","ExxonMobil"
+"McKesson"])]
+
+df3['topcompany']=np.where((df3['company'].isin(["Apple","apple","APPLE","Walmart Labs","Walmart","walmart","Amazon","amazon","AMAZON","CVS health","cvs health","CVS Health","UnitedHealth Group","ExxonMobil", "McKesson"])) & (~df3['company'].isin([120,128])),1,0)
+```
+
+```{python}
+sns.violinplot(x=df3['topcompany'], y=df3["yearlysalary"]).set(title='Distribution of yearly salary')
+plt.show()
+```
+The violinplot above shows the distribution of the two groups. Obviously, the distribution is different. The TOP 10 Companies’ Yearly Salary is likely higher than Not-Top-10 Companies'.
+
+
+### Independent-Sample T Test
+
+_H0: The means for the two populations are equal_<br>
+_H1: The means for the two populations are not equal_<br>
+
+```{python}
+summary, results = rp.ttest(group1= top10['yearlysalary'], group1_name= "top10",
+                            group2= not10['yearlysalary'], group2_name= "not10")
+
+print(summary)
+print(results)
+
+```
+
+By the Independent-Sample T Test, we can find out whether the means for the two groups are equal or not. The result shows that the mean yearlysalary for top 10 companies is 212,371 USD, was significantly higher than the mean yearlysalary of not-top-10 companies, which is 179779 USD. Also, because the p-value < 0.05, we can conclude that the means for the two groups are not equal.
+
+
+## Is working for more years in the same company affect the salary? 
+
+We usually think our colleagues who join the company for more years get higher salaries, but let’s see what this dataset showed.
+
+### Distribution of yeas at company
+```{python}
+
+sns.histplot(data=df3, x="yearsatcompany", bins = 8, binrange = (0.5, 8.5)).set_title('Years at Company')
+plt.show()
+
+
+sns.boxplot(x =df3['yearsatcompany'])
+plt.show()
+
+```
+The distribution of years at company shows that most of people in this dataset had only been in their companies for 0 to 8 years. The median is 2 years.
+
+
+### Scatterplot & Linear Regression Fit Line
+```{python}
+sns.regplot(x=df3["yearsatcompany"], y=df3["yearlysalary"], line_kws={"color":"r","alpha":0.7,"lw":2}).set_title('yearlysalary v.s. yearsatcompany')
+plt.show()
+```
+According to the scatterplot, there’s no linear relationship between Yearly Salary and Years at Company.
+
+### Pearson's correlation between two variables
+```{python}
+from scipy.stats import pearsonr
+corr, _ = pearsonr(df3['yearsatcompany'], df3['yearlysalary'])
+print('Pearsons correlation: %.3f' % corr)
+```
+The result of Pearson's correlation shows that the strength of the relationship between the two variables was Very Weak. So we can conclude that working in the same company for more years does not mean those people have higher salaries.
+
+
+## In the recent four years, the average salary keeps the same?
+Because of COVID-19, the global economy has changed dramatically. We will use statistic test to analyse if the yearly salary keeps the same in recent 4 years.
+
+
+### Distribution of yearly salary by time stamp
+```{python}
+sns.violinplot(x=df3['timestamp'], y=df3["yearlysalary"]).set(title='Distribution of yearly salary in 4 years')
+plt.show()
+```
+From the violinplot, we can see there's a little drop in 2021.
+
+
+### Q-Q Plot (Normality Assumption Check)
+```{python}
+
+unique_time = df3['timestamp'].unique()
+for timestamp in unique_time:
+    stats.probplot(df3[df3['timestamp'] == timestamp]['yearlysalary'], dist="norm", plot=plt)
+    plt.title("Probability Plot - " +  timestamp)
+    plt.show()
+```
+Before we did the hypothesis test, we checked the distribution by Q-Q plot. From the figures, we may assume that the data for each group falls roughly on a straight line.
+
+
+### ANOVA Test
+
+_H₀: μ1= μ2 = μ3 = μ4_<br>
+_H₁: Not all yearlysalary means are equal_<br>
+
+```{python}
+# α = 0.05
+# Create ANOVA backbone table
+data = [['Between Groups', '', '', '', '', '', ''], ['Within Groups', '', '', '', '', '', ''], ['Total', '', '', '', '', '', '']] 
+anova_table = pd.DataFrame(data, columns = ['Source of Variation', 'SS', 'df', 'MS', 'F', 'P-value', 'F crit']) 
+anova_table.set_index('Source of Variation', inplace = True)
+
+# calculate SSTR and update anova table
+x_bar = df3['yearlysalary'].mean()
+SSTR = df3.groupby('timestamp').count() * (df3.groupby('timestamp').mean() - x_bar)**2
+anova_table['SS']['Between Groups'] = SSTR['yearlysalary'].sum()
+
+# calculate SSE and update anova table
+SSE = (df3.groupby('timestamp').count() - 1) * df3.groupby('timestamp').std()**2
+anova_table['SS']['Within Groups'] = SSE['yearlysalary'].sum()
+
+# calculate SSTR and update anova table
+SSTR = SSTR['yearlysalary'].sum() + SSE['yearlysalary'].sum()
+anova_table['SS']['Total'] = SSTR
+
+# update degree of freedom
+anova_table['df']['Between Groups'] = df3['timestamp'].nunique() - 1
+anova_table['df']['Within Groups'] = df3.shape[0] - df3['timestamp'].nunique()
+anova_table['df']['Total'] = df3.shape[0] - 1
+
+# calculate MS
+anova_table['MS'] = anova_table['SS'] / anova_table['df']
+
+# calculate F 
+F = anova_table['MS']['Between Groups'] / anova_table['MS']['Within Groups']
+anova_table['F']['Between Groups'] = F
+
+# p-value
+anova_table['P-value']['Between Groups'] = 1 - stats.f.cdf(F, anova_table['df']['Between Groups'], anova_table['df']['Within Groups'])
+
+# F critical 
+alpha = 0.05
+# possible types "right-tailed, left-tailed, two-tailed"
+tail_hypothesis_type = "two-tailed"
+if tail_hypothesis_type == "two-tailed":
+    alpha /= 2
+anova_table['F crit']['Between Groups'] = stats.f.ppf(1-alpha, anova_table['df']['Between Groups'], anova_table['df']['Within Groups'])
+
+# Final ANOVA Table
+anova_table
+```
+
+```{python}
+print("The p-value approach to hypothesis testing in the decision rule")
+conclusion = "Failed to reject the null hypothesis."
+if anova_table['P-value']['Between Groups'] <= alpha:
+    conclusion = "Null Hypothesis is rejected."
+print("F-score is:", anova_table['F']['Between Groups'], " and p value is:", anova_table['P-value']['Between Groups'])    
+print(conclusion)
+
+# Rejact H0
+
+```
+Based on the result, the p-value < 0.05, so the null hypothesis is rejected. Not all yearly salary means are equal.
+
+
+## How much do the employee's experience affect his or her salary?
+
+```{python}
+sns.barplot(data=df3,x = 'yearsofexperience',y ='yearlysalary')
+plt.title("Yearly Salary vs Year of Experience")
+plt.xticks(rotation='vertical')
+plt.ylim(0,400000,25000)
+plt.xlim(0,35,5)
+plt.show()
+```
+
+```{python}
+sns.lineplot(data=df3,x = 'yearsofexperience',y ='yearlysalary')
+plt.title("Yearly Salary vs Year of Experience")
+plt.xticks(rotation='vertical')
+plt.ylim(100000,1000000,50000)
+plt.xlim(0,20,5)
+plt.show()
+```
+
+There are lot of fluctuations in the salary of employees in the initial 8-9 years, because of some reasons like constant shifting companies and less salaries in the career beginning and have a constant growth in the salary after that.
+
+***Pearson’s Correlation Matrix:***
+
+Pearson's correlation is utilized when you have two quantitative variables and you wish to see if there is a linear relationship between those variables.
+
+The three possible research hypotheses state whether or not there is a linear relationship between the two variables.
+1)	The variables are positively correlated (as one variable gets larger so does the other),
+2)	The variables are negatively correlated (as one variable gets larger the other gets smaller),
+3)	The variables are not correlated (there is no relationship between the two variables).ter that.
+
+
+```{python}
+# Pearson Correlation Matrix
+pearsoncorr=Reference_dataframe.corr(method='pearson')
+pearsoncorr
+```
+
+
+```{python}
+# Pearsons Correlation matrix Using Heatmap
+corr_matrix = Reference_dataframe.corr()
+print(corr_matrix)
+
+plt.figure(figsize=(12,10))
+sns.heatmap(corr_matrix, cmap=plt.cm.CMRmap_r,annot=True)
+plt.show() 
+```
+
+The correlation between yearlysalary and yearsofexperiecne is 0.36 which means that both the variables are moderatel correlated to each other.
+
+# Feature Engineering:
+
+Feature engineering is a machine learning approach that uses data to generate new variables that were not included in the training set. It can develop new features for both supervised and unsupervised learning, with the objective of simplifying and speeding up data transformations while simultaneously boosting model correctness.
+
+The process of designing artificial features into an algorithm is referred to as feature engineering. These fake traits are then employed by the algorithm to increase its performance, or to yield better results. Data scientists spend the majority of their time working with data, thus accuracy is critical.
+
+When feature engineering operations are carried out appropriately, the final dataset is optimum and contains all of the relevant aspects influencing the business challenge. As a consequence of these datasets, the most accurate prediction models and the most relevant insights are created.
+
+
+## Creating Dummy Variables using One Hot Encoding for Company and Location Features
+
+***One Hot Encoding***
+
+One hot encoding can be defined as the important process of changing the categorical data variables to be delivered to machine and deep learning algorithms which in turn increase predictions as well as classification accuracy of a model.
+
+Checking for Unique Variables
+```{python}
+# Checking for Unique Variables
+for col in Reference_dataframe.columns:
+    print(col, ':', len(df3[col].unique()))
+```
+
+Considering the top 20 companies of Multicategorical Feature Company 
+```{python}
+# Considering the top 20 companies of Multicategorical Feature Company 
+df3.company.value_counts().sort_values(ascending=False).head(20)
+#df3.company.value_counts().sort_values(ascending=False).tail(20)
+```
+
+Creating an array of top 20 companies names
+```{python}
+# Creating an array of top 20 companies names
+top_20=[x for x in df3.company.value_counts().sort_values(ascending=False).head(20).index]
+top_20
+```
+
+Function for performing one hot encoding
+```{python}
+def one_hot_top_x(df3,variable,top_x_labels):
+    for label in top_x_labels:
+        df3[variable+'_'+label]=np.where(df3[variable]==label,1,0)
+
+one_hot_top_x(df3,'company', top_20)
+df3.head()
+```
+
+```{python}
+top_20=[x for x in df3.location.value_counts().sort_values(ascending=False).head(20).index]
+one_hot_top_x(df3,'location',top_20)
+```
+
+## Creating Dummy Variables using pandas get_dummies function for gender, timestamp, title features
+
+***Get_dummies***
+Pandas get_dummies() is used for data manipulation. It converts categorical data into dummy or indicator variables.  A dummy or indicator variable can have a value of 0 or 1.
+
+```{python}
+# Creating dummies for gender feature
+df_dummies = pd.get_dummies(df3, columns=['gender'])
+
+# Creating dummies for timestamp feature
+df_dummies1 = pd.get_dummies(df_dummies, columns=['timestamp'])
+
+df_dummies2 = pd.get_dummies(df_dummies1, columns=['title'])
+
+# After applying One Hot Encoding on company and location and Creating Dummies for gender, timestamp and title
+df_dummies2.shape
+
+# To perform Statmodels we removed spaces and commas from the names.
+# To Replace ' ' with '' in column heading
+df_dummies2.columns=df_dummies2.columns.str.replace(' ','')
+
+# To Replace ',' with '_' in column heading
+df_dummies2.columns=df_dummies2.columns.str.replace(',','_')
+df_dummies2.head()
+```
+
+# Predictive Analysis
+
+***Linear Regression***
+
+Linear regression is a technique that offers a linear connection between an independent variable and a dependent variable to predict the outcome of future events. It is a statistical approach used in data science and machine learning for predictive analysis.
+
+## Linear Regression Model
+
+```{python}
+# Import the Libraries for Train_Test_Split from scikit learn:
+from sklearn.model_selection import train_test_split
+
+#Defining X and y Variables for Train and Test Split
+X = df_dummies2.loc[:,['yearsofexperience','company_Amazon','company_Microsoft','company_Google','company_Facebook','company_Apple','company_Oracle','company_Salesforce','company_IBM','company_Intel','company_Cisco','company_CapitalOne','company_Uber','company_VMware','company_LinkedIn','company_JPMorganChase','company_GoldmanSachs','company_Qualcomm','company_Intuit','company_Bloomberg','company_PayPal','location_Seattle_WA','location_SanFrancisco_CA','location_NewYork_NY','location_Redmond_WA','location_Sunnyvale_CA','location_MountainView_CA','location_SanJose_CA','location_Austin_TX','location_Bangalore_KA_India','location_Cupertino_CA','location_MenloPark_CA','location_Boston_MA','location_London_EN_UnitedKingdom','location_SantaClara_CA','location_PaloAlto_CA','location_Chicago_IL','location_SanDiego_CA','location_Toronto_ON_Canada','location_Bellevue_WA','location_Bengaluru_KA_India','gender_Female','gender_Male','gender_Other','timestamp_2018','timestamp_2019','timestamp_2020','timestamp_2021','title_BusinessAnalyst','title_DataScientist','title_HardwareEngineer','title_HumanResources','title_ManagementConsultant','title_Marketing','title_MechanicalEngineer','title_ProductDesigner','title_ProductManager','title_Recruiter','title_Sales','title_SoftwareEngineer','title_SoftwareEngineeringManager','title_SolutionArchitect','title_TechnicalProgramManager',]]
+y = df_dummies2[['yearlysalary']]
+
+# Splitling the data into Train and test Data
+X_train,X_test,y_train,y_test = train_test_split(X,y,train_size=0.8,random_state=100)
+```
+
+```{python}
+# Importing Linear Regression model from scikit learn
+from sklearn.linear_model import LinearRegression
+lr = LinearRegression()
+# Fitting X train and y train in Linear Regression
+lr.fit(X_train,y_train)
+```
+
+```{python}
+# Predicting the value of y
+y_pred = lr.predict(X_test)
+```
+
+Metrics of Linear Regression
+```{python}
+# Importing metrics for the evaluation of the model
+from sklearn.metrics import r2_score,mean_squared_error
+# calculate Mean square error
+mse = mean_squared_error(y_test,y_pred)
+# Calculate R square vale
+rsq = r2_score(y_test,y_pred)
+print('Mean Squared Error of Linear Regression :',round(mse,5))
+print('R Square value of Linear Regression :',round(rsq,5))
+print("The Training R Square value is: %2f"%lr.score(X_train,y_train))
+print("The Testing R Square value is: %2f"%lr.score(X_test,y_test))
+```
+
+Intercepts and Coefficients of Linear Regression
+```{python}
+print("Intercepts of Linear Regression:",lr.intercept_)
+print("Coefficients of Linear Regression:",lr.coef_)
+```
+
+Summary of OLS StatModels
+```{python}
+import statsmodels
+import statsmodels.formula.api as smf
+lin_model = smf.ols(formula= 'yearlysalary~yearsofexperience+company_Amazon+company_Microsoft+company_Google+company_Facebook+company_Apple+company_Oracle+company_Salesforce+company_IBM+company_Intel+company_Cisco+company_CapitalOne+company_Uber+company_VMware+company_LinkedIn+company_JPMorganChase+company_GoldmanSachs+company_Qualcomm+company_Intuit+company_Bloomberg+company_PayPal+location_Seattle_WA+location_SanFrancisco_CA+location_NewYork_NY+location_Redmond_WA+location_Sunnyvale_CA+location_MountainView_CA+location_SanJose_CA+location_Austin_TX+location_Bangalore_KA_India+location_Cupertino_CA+location_MenloPark_CA+location_Boston_MA+location_London_EN_UnitedKingdom+location_SantaClara_CA+location_PaloAlto_CA+location_Chicago_IL+location_SanDiego_CA+location_Toronto_ON_Canada+location_Bellevue_WA+location_Bengaluru_KA_India+gender_Female+gender_Male+gender_Other+timestamp_2018+timestamp_2019+timestamp_2020+timestamp_2021+title_BusinessAnalyst+title_DataScientist+title_HardwareEngineer+title_HumanResources+title_ManagementConsultant+title_Marketing+title_MechanicalEngineer+title_ProductDesigner+title_ProductManager+title_Recruiter+title_Sales+title_SoftwareEngineer+title_SoftwareEngineeringManager+title_SolutionArchitect+title_TechnicalProgramManager',data=df_dummies2).fit()
+lin_model.summary()
+```
+
+
+## Random Forest Regression Model
+
+***Random Forest Regression***
+
+Random Forest Regression is a supervised learning technique that does regression using the ensemble learning method. Ensemble learning method is a methodology that integrates predictions from numerous machine learning algorithms to generate a more accurate forecast than a single model.
+Each tree is built from a separate set of rows, and a new set of characteristics is chosen for splitting at each node. Each of the trees provides a unique forecast. These forecasts are then averaged to get a single outcome.
+
+
+```{python}
+#Defining X and y Variables for Train and Test Split
+X = df_dummies2.loc[:,['yearsofexperience','company_Amazon','company_Microsoft','company_Google','company_Facebook','company_Apple','company_Oracle','company_Salesforce','company_IBM','company_Intel','company_Cisco','company_CapitalOne','company_Uber','company_VMware','company_LinkedIn','company_JPMorganChase','company_GoldmanSachs','company_Qualcomm','company_Intuit','company_Bloomberg','company_PayPal','location_Seattle_WA','location_SanFrancisco_CA','location_NewYork_NY','location_Redmond_WA','location_Sunnyvale_CA','location_MountainView_CA','location_SanJose_CA','location_Austin_TX','location_Bangalore_KA_India','location_Cupertino_CA','location_MenloPark_CA','location_Boston_MA','location_London_EN_UnitedKingdom','location_SantaClara_CA','location_PaloAlto_CA','location_Chicago_IL','location_SanDiego_CA','location_Toronto_ON_Canada','location_Bellevue_WA','location_Bengaluru_KA_India','gender_Female','gender_Male','gender_Other','timestamp_2018','timestamp_2019','timestamp_2020','timestamp_2021','title_BusinessAnalyst','title_DataScientist','title_HardwareEngineer','title_HumanResources','title_ManagementConsultant','title_Marketing','title_MechanicalEngineer','title_ProductDesigner','title_ProductManager','title_Recruiter','title_Sales','title_SoftwareEngineer','title_SoftwareEngineeringManager','title_SolutionArchitect','title_TechnicalProgramManager',]]
+y = df_dummies2[['yearlysalary']]
+
+# Splitling the data into Train and test Data
+X_train,X_test,y_train,y_test = train_test_split(X,y,train_size=0.8,random_state=100)
+```
+
+
+```{python}
+
+# Import the regressor library from sklearn
+from sklearn.ensemble import RandomForestRegressor
+  
+ # create regressor object
+regressor = RandomForestRegressor(n_estimators = 100, random_state = 0)
+  
+# fit the regressor with x and y data
+regressor.fit(X, y)
+
+```
+```{python}
+Pred=regressor.predict(X)
+```
+
+Metrics of Random Forest Regression
+```{python}
+from sklearn.metrics import r2_score
+
+R_Square_Score=r2_score(y,Pred)
+
+Mean_Square_error=mean_squared_error(y,Pred)
+print('Mean Squared Error of Random Forest Regression: ',round(Mean_Square_error,5))
+print('R Square value of Random Forest Regression:',round(R_Square_Score,6))
+print("The Training R Square value is: %2f"%regressor.score(X_train,y_train))
+print("The Testing R Square value is: %2f"%regressor.score(X_test,y_test))
+```
+
+After comparing the rsquare values of both Linear and Random Forest Regression, we got to know that the Random forest model is better model for this dataset.
+
+# Conclusion
+
+1.	The means salary of each job position is different from each other.
+2.	The average salary of gender is not equal
+3.	The average yearly salary in the US top 10 companies was higher than not-top-10 companies’ average yearly salary
+4.	Working in the same company for more years does not mean those people have higher salaries
+5.	The means of yearly salary from 2018 to 2021 are not equal
+6.	Yearly salary won’t affect much by years of experience.
+7.	Random Forest Regression is a better model with high R Square when compared to the Linear Regression
+
+# Reference
+
+Ogozaly, J. (2021, October 10). Data Science and STEM salaries. Kaggle. Retrieved December 20, 2022, from https://www.kaggle.com/datasets/jackogozaly/data-science-and-stem-salaries?resource=download 
+
+Fortune 500. (2022, December 16). Fortune. https://fortune.com/ranking/fortune500/
+

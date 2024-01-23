@@ -1,0 +1,88 @@
+#%%
+import pandas as pd
+import numpy as np
+import matplotlib.pyplot as plt
+import seaborn as sns
+import plotly.express as px
+import scipy.stats as stats
+
+
+
+
+# %% 
+# Check dataset
+df = pd.read_csv("salary_data")
+print (df.info())
+print (df.isnull().sum())
+print (df.head())
+print (df['title'].nunique())
+
+
+# %%
+# Is salary affected by the role offered? 
+
+cate_title = list(set(list(df['title'])))
+# ['Management Consultant', 'Marketing', 'Product Designer', 'Human Resources', 'Product Manager', 'Software Engineering Manager', 'Solution Architect', 'Business Analyst', 'Sales', 'Hardware Engineer', 'Mechanical Engineer', 'Recruiter', 'Data Scientist' 'Technical Program Manager', 'Software Engineer']
+len(cate_title) # 15
+
+print (df['title'].value_counts())
+fig = px.pie(df, names = 'title', title = 'Title')
+fig.show()
+
+#%%
+# All avg by title
+avgbytitle = df.groupby('title').mean()
+print (avgbytitle)
+
+# Only salary avg by title
+avgsalary = avgsalary = df.groupby('title').mean()['yearlysalary'].reset_index()
+print (avgsalary)
+
+
+avgsalary.plot(kind = 'bar', x = 'title', y = 'yearlysalary', title = 'Average Salary per Job Title', figsize=(15,8))
+plt.show()
+
+
+#%%
+plt.boxplot(df['title'])
+
+#%% 
+sns.set(style="whitegrid")
+
+df = sns.load_dataset("df")
+print(df.head())
+print(df.tail())
+print(df.info())
+print(df.shape)
+
+#%%
+clarity_ranking = ["Product Manager", "Software Engineer", "Software Engineering Manager", "Data Scientist", "Solution Architect", "Technical Program Manager", "Human Resources", "Product Designer", "Marketing", "Business Analyst", "Hardware Engineer", "Sales", "Recruiter", "Mechanical Engineer", "Management Consultant"]
+
+titleboxplot = sns.boxplot(x="title", y="yearlysalary", color="b", order=clarity_ranking, data=df, showfliers = False, palette="Blues")
+titleboxplot.axes.set_title("Salary Box Plot by Job Title", fontsize=16)
+titleboxplot.set_xlabel("Job Title", fontsize=14)
+titleboxplot.set_ylabel("Yearly Salary", fontsize=14)
+plt.setp(titleboxplot.get_xticklabels(), rotation=90)
+
+plt.show()
+
+#%%
+# ANOVA for title
+
+f_oneway(avgsalary)
+
+#%%
+# States in US
+# Does location impact the salaries of the employees? 
+cate_loc = list(set(list(df['location'])))
+len(cate_loc) # 1050
+list(set(list(df['location']))).split(', ')
+
+
+# Comparing between US states
+
+# Countries
+# Comparing between coountires (US, Europe, India, etc..)
+
+
+# %%
