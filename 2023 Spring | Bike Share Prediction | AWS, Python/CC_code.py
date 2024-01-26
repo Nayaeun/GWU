@@ -121,7 +121,7 @@ r2_lr = r2_score(y_test, y_pred1)
 cv_lr = cross_val_score(model1, X_train, y_train, cv=10, scoring='r2')
 mean_r2_lr = np.mean(cv_lr)
 print('Linear Regression Mean R2:', mean_r2_lr)
-
+#0.56
 
 #%%%%%%%%%%%%%%%%%%%%% Random Forest %%%%%%%%%%%%%%%%%%%
 model2 = RandomForestRegressor(n_estimators=100, random_state=42)
@@ -137,7 +137,7 @@ r2_rf = r2_score(y_test, y_pred2)
 cv_rf = cross_val_score(model2, X_train, y_train, cv=10, scoring='r2')
 mean_r2_rf = np.mean(cv_rf)
 print('Random Forest Mean R2:', mean_r2_rf)
-
+# 0.88
 
 # %%%%%%%%%%%%%%%%%%%%%% KNN %%%%%%%%%%%%%%%%%%%%%%%%%
 knn = KNeighborsRegressor()
@@ -155,56 +155,61 @@ r2_knn = r2_score(y_test, y_pred_knn)
 cv_knn = cross_val_score(knn, X_train, y_train, cv=10, scoring='r2')
 mean_r2_knn = np.mean(cv_knn)
 print('K-Nearest Neighbors Mean R2:', mean_r2_knn)
+# 0.53
 
+#%%
 # # %%%%%%%%%%%%%%%%%%%%%%%%%% baseline XGBoost %%%%%%%%%%%%%%%%%%%%
-# pipe = make_pipeline(StandardScaler(), XGBRegressor())
+from xgboost import XGBRegressor
 
-# # Cross-validation
-# cv = cross_val_score(pipe, X_train, y_train, cv=10)
-# print('Mean R2', np.mean(cv))
+pipe = make_pipeline(StandardScaler(), XGBRegressor())
 
+# Cross-validation
+cv = cross_val_score(pipe, X_train, y_train, cv=10)
+print('Mean R2', np.mean(cv))
+#0.88
 
-# # %%%%%%%%%%%%%%%%%%%%%%%%%%% tuned XGBoost %%%%%%%%%%%%%%%%%%%%%%%%%
-# pipe = make_pipeline(StandardScaler(), XGBRegressor(n_estimators=70, max_depth=10, eta=0.08,
-#                                                     subsample=0.8, reg_lambda=1.2))
+# %%%%%%%%%%%%%%%%%%%%%%%%%%% tuned XGBoost %%%%%%%%%%%%%%%%%%%%%%%%%
+pipe = make_pipeline(StandardScaler(), XGBRegressor(n_estimators=70, max_depth=10, eta=0.08,
+                                                    subsample=0.8, reg_lambda=1.2))
 
-# # Cross-validation
-# cv = cross_val_score(pipe, X_train, y_train, cv=10)
-# print('Mean R2', np.mean(cv))
+# Cross-validation
+cv = cross_val_score(pipe, X_train, y_train, cv=10)
+print('Mean R2', np.mean(cv))
+# 0.89
 
+#%%
+# Fit and predict
+pipe.fit(X_train, y_train)
+y_pred = pipe.predict(X_test)
+plt.figure(figsize=(7,7))
 
-# #%%
-# # Fit and predict
-# pipe.fit(X_train, y_train)
-# y_pred = pipe.predict(X_test)
-# plt.figure(figsize=(7,7))
+# 1:1 line
+x = np.linspace(0,3500,10)
+y = x
 
-# # 1:1 line
-# x = np.linspace(0,3500,10)
-# y = x
+# Scatter plot predicted vs. actual
+plt.scatter(y_pred, y_test)
+plt.plot(x, y, c='r')
+plt.gca().set_aspect('equal')
+plt.xlabel('Predicted Bike Rents', size=12)
+plt.ylabel('Actual Bike Rents', size=12)
+plt.title('Predicted vs. Actual Bike Rents', size=20)
+plt.xlim(0,3500)
+plt.ylim(0,3500)
 
-# # Scatter plot predicted vs. actual
-# plt.scatter(y_pred, y_test)
-# plt.plot(x, y, c='r')
-# plt.gca().set_aspect('equal')
-# plt.xlabel('Predicted Bike Rents', size=12)
-# plt.ylabel('Actual Bike Rents', size=12)
-# plt.title('Predicted vs. Actual Bike Rents', size=20)
-# plt.xlim(0,3500)
-# plt.ylim(0,3500)
+#%%
+# Create a pd.Series of features importances
+fimp = pipe.steps[1][1].feature_importances_
+importances = pd.Series(data=fimp,
+                        index= X_train.columns)
 
-# #%%
-# # Create a pd.Series of features importances
-# fimp = pipe.steps[1][1].feature_importances_
-# importances = pd.Series(data=fimp,
-#                         index= X_train.columns)
+# Sort importances
+importances_sorted = importances.sort_values()
 
-# # Sort importances
-# importances_sorted = importances.sort_values()
+# Draw a horizontal barplot of importances_sorted
+importances_sorted.plot(kind='barh', color='red')
+plt.title('Features Importances')
+plt.show()
 
-# # Draw a horizontal barplot of importances_sorted
-# importances_sorted.plot(kind='barh', color='red')
-# plt.title('Features Importances')
-# plt.show()
-
-# # Best Mean R2 score is with XG Boost model.
+# # Best Mean R2 score is with XG Boost model (0.89).
+# %%
